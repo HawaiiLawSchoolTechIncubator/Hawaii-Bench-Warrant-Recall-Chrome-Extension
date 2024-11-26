@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+
+  "name": "eCourt Kokua Hawaii Expungement",
+  "description": "The extension that helps attorneys expunge criminal records in Hawaii.",
+  "version": "1.6",
+  "author": "Matthew Stubenberg and Benjamin Leider - University of Hawaii William S. Richardson School of Law",
+  "action": {
+    "default_icon": {
+      "16": "img/Eraser16.png",
+      "24": "img/Eraser24.png",
+      "32": "img/Eraser32.png",
+      "64": "img/Eraser64.png",
+      "128": "img/expungement_eraser_icon128.png",
+      "256": "img/expungement_eraser_icon256.png"
+    },
+    "default_popup": "index.html",
+    "default_title": "Kokua Expungement Tool"
+  },
+  "icons": {
+    "16": "img/Eraser16.png",
+    "24": "img/Eraser24.png",
+    "32": "img/Eraser32.png",
+    "64": "img/Eraser64.png",
+    "128": "img/expungement_eraser_icon128.png",
+    "256": "img/expungement_eraser_icon256.png"
+  },
+  "host_permissions": [
+    "http://*.courts.state.hi.us/*",
+    "https://*.courts.state.hi.us/*"
+  ],
+  "permissions": ["tabs", "activeTab", "scripting", "storage", "webRequest"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*.courts.state.hi.us/*",
+        "https://*.courts.state.hi.us/*"
+      ],
+      "js": ["error-handler.js", "libs/bootstrap.bundle.min.js"],
+      "css": ["libs/bootstrap.min.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "expungement_letter_template/**/*",
+        "expungement_letter_template/*",
+        "expungement_letter_template/_rels/.rels",
+        "libs/jquery-3.6.3.min.js",
+        "libs/bootstrap.bundle.min.js",
+        "libs/bootstrap.min.css",
+        "dialog.css",
+        "case-details.html"
+      ],
+      "matches": [
+        "http://*.courts.state.hi.us/*",
+        "https://*.courts.state.hi.us/*"
+      ]
+    }
+  ]
+}

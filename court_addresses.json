@@ -1,0 +1,190 @@
+{
+    "circuits": [
+      {
+        "name": "First Circuit (Oahu)",
+        "courts": [
+          {
+            "name": "First Circuit Court",
+            "location": [
+                "PUNCHBOWL"
+                ],
+            "address": [
+              "Kaʻahumanu Hale",
+              "777 Punchbowl Street",
+              "Honolulu HI 96813-5093"
+            ]
+          },
+          {
+            "name": "District Court",
+            "location": [
+                "HONOLULU"
+                ],
+            "address": [
+              "Kauikeaouli Hale",
+              "1111 Alakea Street",
+              "Honolulu HI 96813"
+            ]
+          },
+          {
+            "name": "District Court ʻEwa",
+            "location": [
+                "EWA",
+                "`EWA",
+                "DISTRICT COURT EWA",
+                "DISTRICT COURT `EWA"
+                ],
+            "address": [
+              "Pearl City location",
+              "870 Fourth Street",
+              "Pearl City, HI 96782"
+            ]
+          },
+          {
+            "name": "District Court",
+            "location": [
+                "KANEOHE",
+                "KĀNE`OHE",
+                "KANE`OHE"
+                ],
+            "address": [
+              "Kāneʻohe location",
+              "Abner Pākī Hale",
+              "45-939 Poʻokela Street",
+              "Kāneʻohe, HI 96744"
+            ]
+          },
+          {
+            "name": "District Court",
+            "location": [
+                "WAI`ANAE",
+                "WAIANAE"
+                ],
+            "address": [
+              "Waiʻanae location",
+              "4675 Kapolei Parkway",
+              "Kapolei, HI 96707"
+            ]
+          },
+          {
+            "name": "First Circuit Court Family Court",
+            "location": [
+                "KAPOLEI"
+                ],
+            "address": [
+              "Kapolei Judiciary Complex",
+              "4675 Kapolei Parkway",
+              "Kapolei HI 96707-3272"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Second Circuit (Maui)",
+        "courts": [
+          {
+            "name": "Second Circuit Court",
+            "location": [
+                "WAILUKU"
+                ],
+            "address": [
+              "Hoapili Hale",
+              "2145 Main Street, Suite 106",
+              "Wailuku, Hawaiʻi 96793-1679"
+            ]
+          },
+          {
+            "name": "Lahaina District Court",
+            "location": [
+                "LAHAINA"
+                ],
+            "address": [
+              "1870 Honoapiʻilani Hwy.",
+              "Lahaina, Maui, HI 96761"
+            ]
+          },
+          {
+            "name": "Lānaʻi District Court",
+            "location": [
+                "LANAI",
+                "LĀNA`I",
+                "LANA`I"
+                ],
+            "address": [
+              "1870 Honoapiʻilani Hwy.",
+              "Lahaina, Maui, HI 96761"
+            ]
+          },
+          {
+            "name": "Molokaʻi District Court",
+            "location": [
+                "MOLOKAI",
+                "MOLOKA`I"
+                ],
+            "address": [
+              "(P.O. Box 284), 55 Makaʻena Street",
+              "Kaunakakai, Molokaʻi, HI 96748"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Third Circuit (Hawaii)",
+        "courts": [
+          {
+            "name": "Third Circuit Court",
+            "location": [
+                "HILO"
+                ],
+            "address": [
+              "Hale Kaulike",
+              "777 Kīlauea Avenue",
+              "Hilo, Hawaiʻi 96720-4212"
+            ]
+          },
+          {
+            "name": "District Court",
+            "location": [
+                "KA`U",
+                "KONA"
+                ],
+            "address": [
+              "Keahuolū Courthouse",
+              "74-5451 Kamakaʻeha Avenue",
+              "Kailua-Kona, Hawaii 96740"
+            ]
+          },
+          {
+            "name": "South Kohala District Court",
+            "location": [
+                "KOHALA",
+                "WAIMEA"
+                ],
+            "address": [
+              "Waimea Civic Center at Kamuela",
+              "67-5187 Kamāmalu Street",
+              "Kamuela, HI 96743"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Fifth Circuit",
+        "courts": [
+          {
+            "name": "Fifth Circuit Court",
+            "location": [
+                "LIHUE",
+                "LĪHU`E",
+                "LIHŪE",
+                "LIHU`E"
+                ],
+            "address": [
+              "Puʻuhonua Kaulike",
+              "3970 Kā'ana Street",
+              "Līhuʻe, HI 96766"
+            ]
+          }
+        ]
+      }
+    ]
+  }
