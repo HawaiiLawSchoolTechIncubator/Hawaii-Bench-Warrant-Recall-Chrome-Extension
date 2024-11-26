@@ -6,7 +6,8 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
-    <meta name="description" content="Hawaii Expungement Determination Tool" />
+    <!--<meta name="description" content="Hawaii Expungement Determination Tool" />-->
+    <meta name="description" content="Hawaii Court Record Multi-Tool" />
     <meta name="author" content="Richardson Law" />
     <link rel="icon" href="img/Eraser16.png" />
     <title>Hawaii Expungement Determination</title>
@@ -258,27 +259,17 @@
   <body>
     <div class="container-fluid">
       <div class="header text-center">
-        <!--<img src="img/uhr_white_expungement_logo.png" alt="Richardson Law Logo" class="logo-image" style="max-width: 200px; height: auto;">-->
         <img
           src="img/WHITElogo_WSRSL.png"
           alt="Richardson Law Logo"
           class="logo-image"
         />
-        <!--
-            img/uhr_white_expungement_logo.png
-            <div class="logo-title-container">
-                <img src="img/uhr_broken_paddle.png" alt="Richardson Law Logo" class="logo-image" style="max-width: 200px; height: auto;">
-                <h1 class="h1" id="richardson-law-expungement-tool">Richardson Law Expungement Tool</h1>
-            </div>
-            -->
-        <h1 class="centered-content text-white">Expungement Tool</h1>
+        <h1 class="centered-content text-white">Court Record Multi-Tool</h1>
         <p class="centered-content text-white">
           For Licensed Attorneys Only &centerdot; Please Verify Generated Output
         </p>
-        <!--<p class="centered-content text-muted">Please verify all generated output</p>-->
-        <!--<p class="centered-content text-danger">THIS TOOL SHOULD ONLY BE USED BY ATTORNEYS.</p>-->
 
-        <!-- Subtle Box Toggle -->
+        <!-- Tool Mode Toggle -->
         <div class="switch-container">
           <span class="mode-label">Mode:</span>
           <div class="box-switch">
@@ -296,6 +287,7 @@
         </div>
       </div>
 
+      <!-- Button row 1: "Evaluate Case" and "Check Overview Page" -->
       <div class="btn-group mb-3" role="group">
         <button id="evaluate_case_button" class="btn btn-primary">
           Evaluate Case
@@ -305,6 +297,7 @@
         </button>
       </div>
 
+        <!-- Button row 2: "Clear All Clients" and "Generate Documents" -->
       <div class="btn-group mb-3" role="group">
         <button id="emptycases" class="btn btn-danger">
           Clear All Clients
@@ -314,6 +307,7 @@
         </button>
       </div>
 
+      <!-- Defendant Information Text Fields (access by clicking "Defendant" link among case table headers) -->
       <div id="client_info">
         <div id="alternate_name_container" style="display: none;">
           <div class="row g-2">
@@ -375,12 +369,13 @@
               <label class="form-check-label" for="sexFemale">Female</label>
             </div>
             <!-- (The official expungement form's options are currently 'Male' and 'Female')
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="sex" id="other" value="other">
-                        <label class="form-check-label" for="other">
-                            Other
-                        </label>
-                    </div>-->
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="sex" id="other" value="other">
+                    <label class="form-check-label" for="other">
+                        Other
+                    </label>
+                </div>
+            -->
           </div>
           <hr />
           <div class="row g-2 mb-2">

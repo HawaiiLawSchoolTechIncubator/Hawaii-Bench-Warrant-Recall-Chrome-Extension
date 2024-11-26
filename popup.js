@@ -147,6 +147,11 @@ async function loadCourtAddresses() {
   return await response.json();
 }
 
+async function loadSearchReplaceTables() {
+  const response = await fetch(chrome.runtime.getURL("doc_search_replace_tables.json"));
+  return await response.json();
+}
+
 function findCourtAddress(courtAddresses, location) {
   for (const circuit of courtAddresses.circuits) {
     for (const court of circuit.courts) {
@@ -287,6 +292,8 @@ async function generateExpungementLetter(caseObj, client, letterName) {
   const courtLocation = caseObj.CourtLocation;
   const courtAddresses = await loadCourtAddresses();
   const caseNumber = caseObj.CaseNumber;
+  const allSearchReplaceTables = await loadSearchReplaceTables();
+  const searchReplaceTable = allSearchReplaceTables.expungement
 
   const courtInfo = findCourtAddress(courtAddresses, courtLocation);
   log(`Generating letter for case ${caseNumber} at ${courtLocation}`);
@@ -758,8 +765,10 @@ async function displayCases() {
       // Assessment cell based on mode
       if (currentMode === "expungement") {
         html += generateExpungeabilityCell(allcases[x]);
-      } else {
+      } else if (currentMode === "warrant") {
         html += generateWarrantStatusCell(allcases[x]);
+      } else {
+        html += `<td>Error: unknown tool mode ${currentMode}</td>`; // Empty cell for unknown mode
       }
 
       // Override cell based on mode
@@ -946,24 +955,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   await displayClientInfo();
   await displayCases();
 });
-// document.addEventListener("DOMContentLoaded", async function () {
-//   console.log("DOM loaded"); // Debug
 
-//   const radioButtons = document.querySelectorAll('input[name="tool-mode"]');
-//   radioButtons.forEach((radio) => {
-//     radio.addEventListener("change", async function () {
-//       console.log("Mode switch clicked:", this.value);
-//       if (this.checked) {
-//         await saveMode(this.value);
-//         await displayCases();
-//       }
-//     });
-//   });
-
-//   await loadMode();
-//   await displayClientInfo();
-//   await displayCases();
-// });
 
 //Starts the Content Script to add a Case
 jQuery("#evaluate_case_button").click(function () {
@@ -1276,14 +1268,6 @@ async function displayCaseDetails(caseData) {
           </span>
       `);
   }
-  // const overallExpungeability = $("#overall-expungeability");
-  // overallExpungeability.text(caseData.Expungeable);
-  // overallExpungeability.addClass(getExpungeabilityClass(caseData.Expungeable));
-
-  // // Add click event listener to back button
-  // $("#back-button").on("click", function () {
-  //   displayCases();
-  // });
 }
 
 // Initialize Bootstrap tooltips

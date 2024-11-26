@@ -39,7 +39,11 @@
         "http://*.courts.state.hi.us/*",
         "https://*.courts.state.hi.us/*"
       ],
-      "js": ["error-handler.js", "libs/bootstrap.bundle.min.js"],
+      "js": [
+        "generate_docs.js",
+        "error-handler.js",
+        "libs/bootstrap.bundle.min.js"
+      ],
       "css": ["libs/bootstrap.min.css"]
     }
   ],
