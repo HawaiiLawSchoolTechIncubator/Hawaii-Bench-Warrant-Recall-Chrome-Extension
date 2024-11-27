@@ -40,7 +40,6 @@
         "https://*.courts.state.hi.us/*"
       ],
       "js": [
-        "generate_docs.js",
         "error-handler.js",
         "libs/bootstrap.bundle.min.js"
       ],
@@ -50,6 +49,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "generate_docs.js",
         "expungement_letter_template/**/*",
         "expungement_letter_template/*",
         "expungement_letter_template/_rels/.rels",
@@ -57,7 +57,9 @@
         "libs/bootstrap.bundle.min.js",
         "libs/bootstrap.min.css",
         "dialog.css",
-        "case-details.html"
+        "case-details.html",
+        "generate_docs.js",
+        "data_loaders.js"
       ],
       "matches": [
         "http://*.courts.state.hi.us/*",
