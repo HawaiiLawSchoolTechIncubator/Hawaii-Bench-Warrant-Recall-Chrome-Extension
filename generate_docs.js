@@ -269,8 +269,6 @@ const DocumentGenerator = (function() {
               day: "numeric",
           });
 
-          
-
           const zip = await JSZip.loadAsync(templateArrayBuffer);
           let documentXmlContent = await zip.file("word/document.xml").async("string");
 

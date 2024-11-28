@@ -585,11 +585,27 @@ document.addEventListener("DOMContentLoaded", async function () {
           }
       });
   });
+  // Initialize all required functionality
+  try {
+    await Promise.all([
+        loadMode(),
+        loadAttorneyInfo(),
+        displayClientInfo(),
+        displayCases()
+    ]);
 
-  await loadMode();
-  await displayClientInfo();
-  await displayCases();
-});
+    // Add attorney info event listeners after everything is loaded
+    addAttorneyInputListeners();
+    attachAttorneyInfoHandlers();
+
+  } catch (error) {
+      console.error("Error during initialization:", error);
+  }
+
+    // await loadMode();
+    // await displayClientInfo();
+    // await displayCases();
+  });
 
 
 //Starts the Content Script to add a Case
@@ -660,6 +676,74 @@ function generateWarrantHistoryTable(warrantEntries) {
         </tbody>
       </table>
     </div>
+  `;
+}
+
+function generateWarrantDetailsSection() {
+  return `
+      <div id="warrant_details_section" style="display: none;" class="mt-3">
+          <h5>Warrant Details</h5>
+          <div class="card">
+              <div class="card-body">
+                  <!-- Consultation Details -->
+                  <div class="mb-3">
+                      <h6>Consultation Information</h6>
+                      <div class="row g-2">
+                          <div class="col-md-4">
+                              <input type="date" class="form-control" id="consultation_date_input" 
+                                     placeholder="Consultation Date">
+                          </div>
+                          <div class="col-md-4">
+                              <input type="text" class="form-control" id="consultation_town_input" 
+                                     placeholder="Consultation Town">
+                          </div>
+                          <div class="col-md-4">
+                              <div class="form-check mt-2">
+                                  <input class="form-check-input" type="checkbox" id="consulted_at_event_input">
+                                  <label class="form-check-label" for="consulted_at_event_input">
+                                      Consulted at Event
+                                  </label>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Non-appearance Details -->
+                  <div class="mb-3">
+                      <h6>Non-appearance Information</h6>
+                      <div class="row g-2">
+                          <div class="col-md-12">
+                              <input type="date" class="form-control" id="non_appearance_date_input" 
+                                     placeholder="Non-appearance Date">
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Warrant Details -->
+                  <div class="mb-3">
+                      <h6>Warrant Information</h6>
+                      <div class="row g-2">
+                          <div class="col-md-6">
+                              <input type="date" class="form-control" id="warrant_issue_date_input" 
+                                     placeholder="Warrant Issue Date">
+                          </div>
+                          <div class="col-md-6">
+                              <div class="input-group">
+                                  <span class="input-group-text">$</span>
+                                  <input type="number" class="form-control" id="warrant_amount_input" 
+                                         placeholder="Warrant Amount">
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="btn-group">
+                      <button type="button" class="btn btn-primary" id="save_warrant_details">Save</button>
+                      <button type="button" class="btn btn-secondary" id="cancel_warrant_details">Cancel</button>
+                  </div>
+              </div>
+          </div>
+      </div>
   `;
 }
 
@@ -837,15 +921,22 @@ async function displayCaseDetails(caseData) {
     // Recommend testing with 1CPC-22-0001376
     let warrantTableHtml = "";
     if (additionalFactorsProcessed?.warrantDetails) {
-      // Generate warrant history table if warrantEntries exist
       if (additionalFactorsProcessed.warrantDetails.warrantEntries) {
-        warrantTableHtml = generateWarrantHistoryTable(
-          additionalFactorsProcessed.warrantDetails.warrantEntries
-        );
+          warrantTableHtml = generateWarrantHistoryTable(
+              additionalFactorsProcessed.warrantDetails.warrantEntries
+          );
       }
       additionalFactorsProcessed.warrantDetails =
-        additionalFactorsProcessed.warrantDetails.explanation;
-    }
+          additionalFactorsProcessed.warrantDetails.explanation;
+      }
+
+      // Clear the container first
+      $("#additional-factors-container").empty();
+      
+      // Add the header
+      $("#additional-factors-container").append(`
+          <h4 class="mb-3">Additional Factors:</h4>
+      `);
 
     const factorsHtml = generatePropertiesHtml(additionalFactorsProcessed);
     if (factorsHtml) {
@@ -859,12 +950,14 @@ async function displayCaseDetails(caseData) {
       `);
     }
 
-    // Append warrant history table if it exists
+    // Add warrant history table after factors card
     if (warrantTableHtml) {
-      console.log("Appending warrant history table");
-      $("#additional-factors-container").append(warrantTableHtml);
-    } else {
-      console.log("No warrant history table to append");
+        $("#additional-factors-container").append(warrantTableHtml);
+    }
+    
+    // Add warrant details section after warrant history
+    if (currentMode === 'warrant') {
+        $("#additional-factors-container").append(generateWarrantDetailsSection());
     }
   }
 
@@ -901,12 +994,327 @@ async function displayCaseDetails(caseData) {
       `);
   }
 
+  // Initialize warrant functionality if in warrant mode
+  if (currentMode === 'warrant') {
+    initializeWarrantUI(caseData);
+  }
+
   // Add click event listener to back button
   $("#back-button").on("click", function () {
     displayCases();
   });
 
 }
+////////////////////////////// WARRANT DETAILS /////////////////////////////
+// State object for warrant details
+let warrantDetails = {
+  consultationDate: "",
+  consultationTown: "",
+  consultedAtEvent: false,
+  nonAppearanceDate: "",
+  warrantIssueDate: "",
+  warrantAmount: "",
+  caseNumber: ""  // Store which case these details belong to
+};
+
+// Add to displayCaseDetails function after setting up warrant history
+function initWarrantDetails(caseData) {
+  const warrantButton = $('#warrant_details_button');
+  
+  // Only show button in warrant mode with outstanding warrant
+  if (currentMode === 'warrant' && caseData.warrantStatus?.hasOutstandingWarrant) {
+      warrantButton.show();
+      
+      // Load any existing warrant details for this case
+      loadWarrantDetails(caseData.CaseNumber);
+  } else {
+      warrantButton.hide();
+  }
+}
+
+// Load warrant details from storage
+async function loadWarrantDetails(caseNumber) {
+  return new Promise((resolve) => {
+      chrome.storage.local.get('warrantDetails', function(result) {
+          if (result.warrantDetails && result.warrantDetails[caseNumber]) {
+              warrantDetails = { ...warrantDetails, ...result.warrantDetails[caseNumber] };
+              updateWarrantDetailsForm();
+          }
+          resolve(warrantDetails);
+      });
+  });
+}
+
+// Save warrant details to storage
+async function saveWarrantDetails() {
+  return new Promise((resolve) => {
+      chrome.storage.local.get('warrantDetails', function(result) {
+          const allWarrantDetails = result.warrantDetails || {};
+          allWarrantDetails[warrantDetails.caseNumber] = warrantDetails;
+          
+          chrome.storage.local.set({ warrantDetails: allWarrantDetails }, () => {
+              console.log('Warrant details saved:', warrantDetails);
+              resolve();
+          });
+      });
+  });
+}
+
+// Update form with current values
+function updateWarrantDetailsForm() {
+  $('#consultation_date_input').val(warrantDetails.consultationDate);
+  $('#consultation_town_input').val(warrantDetails.consultationTown);
+  $('#consulted_at_event_input').prop('checked', warrantDetails.consultedAtEvent);
+  $('#non_appearance_date_input').val(warrantDetails.nonAppearanceDate);
+  $('#warrant_issue_date_input').val(warrantDetails.warrantIssueDate);
+  $('#warrant_amount_input').val(warrantDetails.warrantAmount);
+}
+
+// Get date components for document generation
+function getDateComponents(dateString) {
+  if (!dateString) return { month: '', day: '', year: '' };
+  
+  const date = new Date(dateString);
+  return {
+      month: (date.getMonth() + 1).toString(), // getMonth() is 0-based
+      day: date.getDate().toString(),
+      year: date.getFullYear().toString()
+  };
+}
+
+// Add warrant details handlers
+function attachWarrantDetailsHandlers() {
+  // Show form when clicking the button
+  $('#warrant_details_button').on('click', function() {
+      $('#warrant_details_section').show();
+  });
+
+  // Save button handler
+  $('#save_warrant_details').on('click', async function() {
+      warrantDetails = {
+          ...warrantDetails,
+          consultationDate: $('#consultation_date_input').val(),
+          consultationTown: $('#consultation_town_input').val(),
+          consultedAtEvent: $('#consulted_at_event_input').is(':checked'),
+          nonAppearanceDate: $('#non_appearance_date_input').val(),
+          warrantIssueDate: $('#warrant_issue_date_input').val(),
+          warrantAmount: $('#warrant_amount_input').val()
+      };
+      
+      await saveWarrantDetails();
+      $('#warrant_details_section').hide();
+  });
+
+  // Cancel button handler
+  $('#cancel_warrant_details').on('click', function() {
+      $('#warrant_details_section').hide();
+      updateWarrantDetailsForm();  // Reset to last saved state
+  });
+
+  // Add input listeners for immediate state updates
+  $('#consultation_date_input').on('change', function() {
+      warrantDetails.consultationDate = $(this).val();
+  });
+  $('#consultation_town_input').on('input', function() {
+      warrantDetails.consultationTown = $(this).val().trim();
+  });
+  $('#consulted_at_event_input').on('change', function() {
+      warrantDetails.consultedAtEvent = $(this).is(':checked');
+  });
+  $('#non_appearance_date_input').on('change', function() {
+      warrantDetails.nonAppearanceDate = $(this).val();
+  });
+  $('#warrant_issue_date_input').on('change', function() {
+      warrantDetails.warrantIssueDate = $(this).val();
+  });
+  $('#warrant_amount_input').on('input', function() {
+      warrantDetails.warrantAmount = $(this).val().trim();
+  });
+}
+
+// Call this when displaying case details
+function initializeWarrantUI(caseData) {
+  warrantDetails.caseNumber = caseData.CaseNumber;
+  attachWarrantDetailsHandlers();
+  initWarrantDetails(caseData);
+}
+
+
+/////////////////////////// ATTORNEY INFORMATION ///////////////////////////
+// Attorney information state
+let attorneyInfo = {
+  isPublicDefender: true,
+  firmName: "",
+  attorneyName: "",
+  attorneyRegistration: "",
+  headPdName: "Jon N. Ikenaga",
+  headPdRegistration: "6284",
+  attorneyAddress1: "",
+  attorneyAddress2: "",
+  attorneyAddress3: "",
+  attorneyAddress4: "",
+  attorneyTelephone: "",
+  attorneyFax: "",
+  attorneyEmail: "",
+  circuitOrdinal: ""
+};
+
+// Load attorney info from storage
+async function loadAttorneyInfo() {
+  return new Promise((resolve) => {
+      chrome.storage.local.get('attorneyInfo', function(result) {
+          if (result.attorneyInfo) {
+              // Default values for Head Public Defender
+              const defaults = {
+                headPdName: "Jon N. Ikenaga",
+                headPdRegistration: "6284"
+              };
+
+              attorneyInfo = { 
+                ...attorneyInfo, 
+                ...result.attorneyInfo,
+                // Restore defaults if values are empty
+                headPdName: result.attorneyInfo.headPdName || defaults.headPdName,
+                headPdRegistration: result.attorneyInfo.headPdRegistration || defaults.headPdRegistration
+            };
+              updateAttorneyDisplay();
+              updateFormFields();
+          }
+          resolve(attorneyInfo);
+      });
+  });
+}
+
+// Save attorney info to storage
+async function saveAttorneyInfo() {
+  return new Promise((resolve) => {
+      chrome.storage.local.set({ attorneyInfo }, () => {
+          console.log('Attorney info saved:', attorneyInfo);
+          updateAttorneyDisplay();
+          resolve();
+      });
+  });
+}
+
+// Update the attorney name display in the header
+function updateAttorneyDisplay() {
+  const displayElement = $('#attorney_info_display');
+  const defaultText = 'Set Attorney Information';
+  
+  if (attorneyInfo.attorneyName) {
+      displayElement.html(`
+          <span class="attorney-name">Attorney: ${attorneyInfo.attorneyName}</span>
+          <a href="#" class="change-link text-white-50 ms-2">
+              <small>[Change]</small>
+          </a>
+      `);
+  } else {
+      displayElement.html(`
+          <a href="#" class="text-white text-decoration-none">${defaultText}</a>
+      `);
+  }
+}
+
+// Update form fields with current values
+function updateFormFields() {
+  $('#firm_name_input').val(attorneyInfo.firmName);
+  $('#attorney_name_input').val(attorneyInfo.attorneyName);
+  $('#attorney_registration_input').val(attorneyInfo.attorneyRegistration);
+  $('#head_pd_name_input').val(attorneyInfo.headPdName);
+  $('#head_pd_registration_input').val(attorneyInfo.headPdRegistration);
+  $('#attorney_address_3_input').val(attorneyInfo.attorneyAddress3);
+  $('#attorney_address_4_input').val(attorneyInfo.attorneyAddress4);
+  $('#attorney_telephone_input').val(attorneyInfo.attorneyTelephone);
+  $('#attorney_fax_input').val(attorneyInfo.attorneyFax);
+  $('#attorney_email_input').val(attorneyInfo.attorneyEmail);
+  $('#circuit_ordinal_input').val(attorneyInfo.circuitOrdinal);
+  $('#attorney_type_toggle').prop('checked', attorneyInfo.isPublicDefender);
+  $('#attorney_address_1_input').val(attorneyInfo.attorneyAddress1);
+  $('#attorney_address_2_input').val(attorneyInfo.attorneyAddress2);
+  
+  // Update field visibility based on attorney type
+  updateFieldVisibility();
+}
+
+// Add input listeners for attorney form fields
+function addAttorneyInputListeners() {
+  const fields = {
+      'firm_name_input': 'firmName',
+      'attorney_name_input': 'attorneyName',
+      'attorney_registration_input': 'attorneyRegistration',
+      'head_pd_name_input': 'headPdName',
+      'head_pd_registration_input': 'headPdRegistration',
+      'attorney_address_3_input': 'attorneyAddress3',
+      'attorney_address_4_input': 'attorneyAddress4',
+      'attorney_telephone_input': 'attorneyTelephone',
+      'attorney_fax_input': 'attorneyFax',
+      'attorney_email_input': 'attorneyEmail',
+  };
+
+  Object.entries(fields).forEach(([inputId, infoKey]) => {
+      $(`#${inputId}`).on('input', function() {
+          attorneyInfo[infoKey] = $(this).val().trim();
+      });
+  });
+
+  $('#circuit_ordinal_input').on('change', function() {
+      attorneyInfo.circuitOrdinal = $(this).val();
+  });
+
+  // Add attorney type toggle listener
+  $('#attorney_type_toggle').on('change', function() {
+      attorneyInfo.isPublicDefender = $(this).is(':checked');
+      updateFieldVisibility();
+  });
+
+  // Add new address fields
+  $('#attorney_address_1_input').on('input', function() {
+      attorneyInfo.attorneyAddress1 = $(this).val().trim();
+  });
+  $('#attorney_address_2_input').on('input', function() {
+      attorneyInfo.attorneyAddress2 = $(this).val().trim();
+  });
+}
+
+// Add click handlers for attorney info form
+function attachAttorneyInfoHandlers() {
+  // Show form when clicking any part of the attorney info display
+  $(document).on('click', '#attorney_info_display, #attorney_info_display a', function(e) {
+      e.preventDefault();
+      console.log('Attorney info display clicked');
+      $('#attorney_info_container').show();
+  });
+
+  // Confirm button handler
+  $(document).on('click', '#confirm_attorney_info', async function() {
+      console.log('Confirming attorney info');
+      await saveAttorneyInfo();
+      $('#attorney_info_container').hide();
+  });
+
+  // Cancel button handler
+  $(document).on('click', '#cancel_attorney_info', function() {
+      console.log('Canceling attorney info edit');
+      $('#attorney_info_container').hide();
+      updateFormFields();  // Reset to last saved state
+  });
+
+  // Add logging to verify the handler is attached
+  console.log('Attorney info handlers attached');
+}
+
+// Handle attorney info field visibility
+function updateFieldVisibility() {
+  if (attorneyInfo.isPublicDefender) {
+      $('#public_defender_fields').show();
+      $('#private_attorney_fields').hide();
+  } else {
+      $('#public_defender_fields').hide();
+      $('#private_attorney_fields').show();
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////
 
 // Initialize Bootstrap tooltips
 function initTooltips() {

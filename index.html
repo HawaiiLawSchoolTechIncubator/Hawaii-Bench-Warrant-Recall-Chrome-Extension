@@ -1,444 +1,516 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no"
-    />
-    <!--<meta name="description" content="Hawaii Expungement Determination Tool" />-->
-    <meta name="description" content="Hawaii Court Record Multi-Tool" />
-    <meta name="author" content="Richardson Law" />
-    <link rel="icon" href="img/Eraser16.png" />
-    <title>Hawaii Expungement Determination</title>
-    <link href="libs/bootstrap.min.css" rel="stylesheet" />
-    <style>
-      /* Main Popup Page */
-      body {
-        width: 635px;
-        padding: 10px;
-        font-family: Arial, sans-serif;
-      }
-      .header {
-        background-color: #2a4b12;
-        color: white;
-        padding: 10px;
-        margin-bottom: 10px;
-        border-radius: 5px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      .logo-image {
-        max-width: 550px;
-        padding-top: 7px;
-        padding-left: 7px;
-        padding-right: 20px;
-        padding-bottom: 0px;
-        margin-top: -6px;
-        margin-bottom: -6px;
-        /*height: 70px!important;*/
-        /*height: auto;
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+  <!--<meta name="description" content="Hawaii Expungement Determination Tool" />-->
+  <meta name="description" content="Hawaii Court Record Multi-Tool" />
+  <meta name="author" content="Richardson Law" />
+  <link rel="icon" href="img/Eraser16.png" />
+  <title>Hawaii Expungement Determination</title>
+  <link href="libs/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    /* Main Popup Page */
+    body {
+      width: 635px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+
+    .header {
+      background-color: #2a4b12;
+      color: white;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .logo-image {
+      max-width: 550px;
+      padding-top: 7px;
+      padding-left: 7px;
+      padding-right: 20px;
+      padding-bottom: 0px;
+      margin-top: -6px;
+      margin-bottom: -6px;
+      /*height: 70px!important;*/
+      /*height: auto;
             margin-right: 10px;*/
-        /*width: fit-content;*/
-      }
-      .logo-title-container {
-        display: flex;
-        align-items: center; /* Align items vertically centered */
-      }
-      .header h1 {
-        font-size: 1.7rem;
-        font-weight: bold;
-        margin-top: 0px;
-        margin-bottom: 5px;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-      }
-      .header .subtitle {
-        font-size: 0.9rem;
-        opacity: 0.9;
-      }
-      .text-muted {
-        color: #acacac !important;
-      }
-      .mb-3 {
-        margin-bottom: 10px !important;
-      }
-      .mb-4 {
-        margin-bottom: 10px !important;
-      }
-      .btn-group {
-        width: 100%;
-        margin-bottom: 0px;
-      }
-      .btn-group .btn {
-        flex: 1;
-      }
-      #client_name {
-        font-weight: bold;
-        margin-bottom: 4px;
-      }
-      #alternate_name_container input {
-        margin-bottom: 0px;
-      }
-      #assessment {
-        font-weight: bold;
-        margin-top: 0px;
-      }
-      #defendant-header {
-        color: blue;
-      }
-      .table {
-        font-size: 0.9rem;
-      }
-      .centered-content {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        height: 100%;
-      }
-      .g-2 {
-        margin-bottom: 10px;
-      }
-      .text-expungeable {
-        color: darkgreen;
-        font-weight: bold;
-      }
-      .text-partially-expungeable {
-        color: goldenrod;
-        font-weight: bold;
-      }
-      .text-possibly-expungeable {
-        color: darkorange;
-        font-weight: bold;
-        font-style: italic;
-      }
-      .text-not-expungeable {
-        color: darkred;
-        font-weight: bold;
-      }
-      .horizontal-radio-buttons {
-        display: flex;
-        /*justify-content: center;
+      /*width: fit-content;*/
+    }
+
+    .logo-title-container {
+      display: flex;
+      align-items: center;
+      /* Align items vertically centered */
+    }
+
+    .header h1 {
+      font-size: 1.7rem;
+      font-weight: bold;
+      margin-top: 0px;
+      margin-bottom: 5px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .header .subtitle {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .text-muted {
+      color: #acacac !important;
+    }
+
+    .mb-3 {
+      margin-bottom: 10px !important;
+    }
+
+    .mb-4 {
+      margin-bottom: 10px !important;
+    }
+
+    .btn-group {
+      width: 100%;
+      margin-bottom: 0px;
+    }
+
+    .btn-group .btn {
+      flex: 1;
+    }
+
+    #client_name {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    #alternate_name_container input {
+      margin-bottom: 0px;
+    }
+
+    #assessment {
+      font-weight: bold;
+      margin-top: 0px;
+    }
+
+    #defendant-header {
+      color: blue;
+    }
+
+    .table {
+      font-size: 0.9rem;
+    }
+
+    .centered-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .g-2 {
+      margin-bottom: 10px;
+    }
+
+    .text-expungeable {
+      color: darkgreen;
+      font-weight: bold;
+    }
+
+    .text-partially-expungeable {
+      color: goldenrod;
+      font-weight: bold;
+    }
+
+    .text-possibly-expungeable {
+      color: darkorange;
+      font-weight: bold;
+      font-style: italic;
+    }
+
+    .text-not-expungeable {
+      color: darkred;
+      font-weight: bold;
+    }
+
+    .horizontal-radio-buttons {
+      display: flex;
+      /*justify-content: center;
             align-items: center;*/
-      }
+    }
 
-      .horizontal-radio-buttons .form-check {
-        display: inline-block;
-        margin-right: 10px;
-      }
-      .horizontal-radio-buttons label {
-        /*font-weight: bold;*/
-        margin-right: 10px;
-      }
-      .case-link {
-        color: #007bff;
-        text-decoration: none;
-      }
-      .case-link:hover {
-        text-decoration: underline;
-      }
-      #case-details {
-        margin-top: 20px;
-      }
-      #back-button {
-        margin-bottom: 15px;
-      }
-      /* Case Details */
-      .case-details .card {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
+    .horizontal-radio-buttons .form-check {
+      display: inline-block;
+      margin-right: 10px;
+    }
 
-      .case-details .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #ddd;
-      }
+    .horizontal-radio-buttons label {
+      /*font-weight: bold;*/
+      margin-right: 10px;
+    }
 
-      .case-details .badge {
-        font-size: 0.9em;
-        padding: 0.4em 0.6em;
-      }
+    .case-link {
+      color: #007bff;
+      text-decoration: none;
+    }
 
-      .case-details h3,
-      .case-details h4 {
-        color: #2c3e50;
-      }
+    .case-link:hover {
+      text-decoration: underline;
+    }
 
-      .case-id-container {
-        display: flex;
-        align-items: center;
-      }
+    #case-details {
+      margin-top: 20px;
+    }
 
-      .case-id-container h3 {
-        margin-right: 10px;
-        padding-top: 10px;
-      }
+    #back-button {
+      margin-bottom: 15px;
+    }
 
-      .case-id-container .badge {
-        margin-left: auto;
-      }
+    /* Case Details */
+    .case-details .card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
 
-      .card-header {
-        display: flex;
-        align-items: center;
-      }
+    .case-details .card-header {
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #ddd;
+    }
 
-      .card-header .badge {
-        margin-left: auto;
-      }
+    .case-details .badge {
+      font-size: 0.9em;
+      padding: 0.4em 0.6em;
+    }
 
-      #back-button {
-        background-color: #6c757d;
-        color: white;
-        border: none;
-        padding: 0.375rem 0.75rem;
-        border-radius: 0.25rem;
-        cursor: pointer;
-        transition: background-color 0.15s ease-in-out;
-      }
+    .case-details h3,
+    .case-details h4 {
+      color: #2c3e50;
+    }
 
-      #back-button:hover {
-        background-color: #5a6268;
-      }
+    .case-id-container {
+      display: flex;
+      align-items: center;
+    }
 
-      .case-details p {
-        margin-bottom: 0.5rem;
-      }
+    .case-id-container h3 {
+      margin-right: 10px;
+      padding-top: 10px;
+    }
 
-      .expungeability-explanation {
-        font-style: italic;
-        margin-bottom: 0.5rem;
-        text-align: center;
-      }
-      /* STYLE FOR SWITCH OPTIONS */
-      .switch-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px;
-        margin: 8px 0;
-      }
+    .case-id-container .badge {
+      margin-left: auto;
+    }
 
-      .mode-label {
-        color: #e0e0e0;
-        font-size: 13px;
-        margin-right: 8px;
-      }
+    .card-header {
+      display: flex;
+      align-items: center;
+    }
 
-      .box-switch {
-        display: inline-flex;
-        gap: 8px;
-        padding: 4px;
-        background: rgba(0, 0, 0, 0.2); /* Darker background for contrast */
-        border-radius: 4px;
-      }
+    .card-header .badge {
+      margin-left: auto;
+    }
 
-      .box-switch input[type="radio"] {
-        display: none;
-      }
+    #back-button {
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: background-color 0.15s ease-in-out;
+    }
 
-      .box-switch label {
-        padding: 4px 12px;
-        font-size: 13px;
-        color: #e0e0e0; /* Light gray for unselected */
-        cursor: pointer;
-        border-radius: 2px;
-        transition: all 0.2s ease;
-      }
+    #back-button:hover {
+      background-color: #5a6268;
+    }
 
-      .box-switch input[type="radio"]:checked + label {
-        background: rgba(
+    .case-details p {
+      margin-bottom: 0.5rem;
+    }
+
+    .expungeability-explanation {
+      font-style: italic;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    /* STYLE FOR SWITCH OPTIONS */
+    .switch-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      margin: 8px 0;
+    }
+
+    .mode-label {
+      color: #e0e0e0;
+      font-size: 13px;
+      margin-right: 8px;
+    }
+
+    .box-switch {
+      display: inline-flex;
+      gap: 8px;
+      padding: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      /* Darker background for contrast */
+      border-radius: 4px;
+    }
+
+    .box-switch input[type="radio"] {
+      display: none;
+    }
+
+    .box-switch label {
+      padding: 4px 12px;
+      font-size: 13px;
+      color: #e0e0e0;
+      /* Light gray for unselected */
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .box-switch input[type="radio"]:checked+label {
+      background: rgba(255,
           255,
           255,
-          255,
-          0.25
-        ); /* Lighter background for selected */
-        color: white; /* White text for selected */
-        font-weight: 500; /* Slightly bolder when selected */
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container-fluid">
-      <div class="header text-center">
-        <img
-          src="img/WHITElogo_WSRSL.png"
-          alt="Richardson Law Logo"
-          class="logo-image"
-        />
-        <h1 class="centered-content text-white">Court Record Multi-Tool</h1>
-        <p class="centered-content text-white">
-          For Licensed Attorneys Only &centerdot; Please Verify Generated Output
-        </p>
+          0.25);
+      /* Lighter background for selected */
+      color: white;
+      /* White text for selected */
+      font-weight: 500;
+      /* Slightly bolder when selected */
+    }
+  </style>
+</head>
 
-        <!-- Tool Mode Toggle -->
-        <div class="switch-container">
-          <span class="mode-label">Mode:</span>
-          <div class="box-switch">
-            <input
-              type="radio"
-              id="expungement-box"
-              name="tool-mode"
-              value="expungement"
-              checked
-            />
-            <label for="expungement-box">Expungement</label>
-            <input type="radio" id="warrant-box" name="tool-mode" value="warrant" />
-            <label for="warrant-box">Warrant Check</label>
-          </div>
+<body>
+  <div class="container-fluid">
+    <div class="header text-center">
+      <img src="img/WHITElogo_WSRSL.png" alt="Richardson Law Logo" class="logo-image" />
+      <h1 class="centered-content text-white">Court Record Multi-Tool</h1>
+      <p class="centered-content text-white">
+        For Licensed Attorneys Only &centerdot; Please Verify Generated Output
+      </p>
+      <!-- Attorney Info Link -->
+      <a href="#" id="attorney_info_display" class="text-white text-decoration-none">
+        <small>Set Attorney Information</small>
+      </a>
+
+      <!-- Tool Mode Toggle -->
+      <div class="switch-container">
+        <span class="mode-label">Mode:</span>
+        <div class="box-switch">
+          <input type="radio" id="expungement-box" name="tool-mode" value="expungement" checked />
+          <label for="expungement-box">Expungement</label>
+          <input type="radio" id="warrant-box" name="tool-mode" value="warrant" />
+          <label for="warrant-box">Warrant Check</label>
         </div>
       </div>
 
-      <!-- Button row 1: "Evaluate Case" and "Check Overview Page" -->
-      <div class="btn-group mb-3" role="group">
-        <button id="evaluate_case_button" class="btn btn-primary">
-          Evaluate Case
-        </button>
-        <button id="overview_button" class="btn btn-secondary">
-          Check Overview Page
-        </button>
-      </div>
+      <!-- Attorney Info Link -->
+      <!--<a href="#" id="attorney_info_link" class="text-white text-decoration-none">
+            <small>Set Attorney Information</small>
+          </a>-->
+    </div>
 
-        <!-- Button row 2: "Clear All Clients" and "Generate Documents" -->
-      <div class="btn-group mb-3" role="group">
-        <button id="emptycases" class="btn btn-danger">
-          Clear All Clients
-        </button>
-        <button id="generate_pdf_button" class="btn btn-success">
-          Generate Documents
-        </button>
-      </div>
+    <!-- Button row 1: "Evaluate Case" and "Check Overview Page" -->
+    <div class="btn-group mb-3" role="group">
+      <button id="evaluate_case_button" class="btn btn-primary">
+        Evaluate Case
+      </button>
+      <button id="overview_button" class="btn btn-secondary">
+        Check Overview Page
+      </button>
+    </div>
 
-      <!-- Defendant Information Text Fields (access by clicking "Defendant" link among case table headers) -->
-      <div id="client_info">
-        <div id="alternate_name_container" style="display: none;">
-          <div class="row g-2">
-            <div class="col-md-4">
-              <input
-                type="text"
-                id="alternate_first_name_input"
-                class="form-control"
-                placeholder="First Name "
-              />
-            </div>
-            <div class="col-md-4">
-              <input
-                type="text"
-                id="alternate_middle_name_input"
-                class="form-control"
-                placeholder="Middle Name "
-              />
-            </div>
-            <div class="col-md-4">
-              <input
-                type="text"
-                id="alternate_last_name_input"
-                class="form-control"
-                placeholder="Last Name"
-              />
-            </div>
+    <!-- Button row 2: "Clear All Clients" and "Generate Documents" -->
+    <div class="btn-group mb-3" role="group">
+      <button id="emptycases" class="btn btn-danger">
+        Clear All Clients
+      </button>
+      <button id="generate_pdf_button" class="btn btn-success">
+        Generate Documents
+      </button>
+    </div>
+
+    <!-- Defendant Information Text Fields (access by clicking "Defendant" link among case table headers) -->
+    <div id="client_info">
+      <div id="alternate_name_container" style="display: none;">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <input type="text" id="alternate_first_name_input" class="form-control" placeholder="First Name " />
           </div>
-          <hr />
-          <div class="row g-2 mb-2">
-            <div class="col-md-12">
-              <input
-                type="text"
-                id="alternate_date_of_birth_input"
-                class="form-control"
-                placeholder="Date of Birth"
-              />
-            </div>
+          <div class="col-md-4">
+            <input type="text" id="alternate_middle_name_input" class="form-control" placeholder="Middle Name " />
           </div>
-          <div class="col-md-12 horizontal-radio-buttons">
-            <div class="form-check">
-              <input
-                class="form-check-input"
-                type="radio"
-                name="sex"
-                id="sexMale"
-                value="Male"
-              />
-              <label class="form-check-label" for="sexMale">Male</label>
-            </div>
-            <div class="form-check">
-              <input
-                class="form-check-input"
-                type="radio"
-                name="sex"
-                id="sexFemale"
-                value="Female"
-              />
-              <label class="form-check-label" for="sexFemale">Female</label>
-            </div>
-            <!-- (The official expungement form's options are currently 'Male' and 'Female')
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="sex" id="other" value="other">
-                    <label class="form-check-label" for="other">
-                        Other
-                    </label>
-                </div>
-            -->
-          </div>
-          <hr />
-          <div class="row g-2 mb-2">
-            <div class="col-md-12">
-              <input
-                type="text"
-                id="alternate_address_line1_input"
-                class="form-control"
-                placeholder="Address Line 1"
-              />
-            </div>
-          </div>
-          <div class="row g-2 mb-2">
-            <div class="col-md-12">
-              <input
-                type="text"
-                id="alternate_address_line2_input"
-                class="form-control"
-                placeholder="Address Line 2"
-              />
-            </div>
-          </div>
-          <div class="row g-2 mb-2">
-            <div class="col-md-12">
-              <input
-                type="text"
-                id="alternate_address_line3_input"
-                class="form-control"
-                placeholder="Address Line 3"
-              />
-            </div>
-          </div>
-          <div class="row g-2 mb-2">
-            <div class="col-md-12">
-              <input
-                type="text"
-                id="alternate_phone_input"
-                class="form-control"
-                placeholder="Phone"
-              />
-            </div>
-          </div>
-          <div class="row g-2 mb-2">
-            <div class="col-md-12">
-              <input
-                type="text"
-                id="alternate_email_input"
-                class="form-control"
-                placeholder="Email"
-              />
-            </div>
-          </div>
-          <div class="btn-group mb-4" role="group">
-            <button id="confirm_name_override" class="btn btn-primary mt-2">
-              Confirm
-            </button>
-            <button id="cancel_name_override" class="btn btn-danger mt-2">
-              Cancel
-            </button>
+          <div class="col-md-4">
+            <input type="text" id="alternate_last_name_input" class="form-control" placeholder="Last Name" />
           </div>
         </div>
+        <hr />
+        <div class="row g-2 mb-2">
+          <div class="col-md-12">
+            <input type="text" id="alternate_date_of_birth_input" class="form-control" placeholder="Date of Birth" />
+          </div>
+        </div>
+        <div class="col-md-12 horizontal-radio-buttons">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="sex" id="sexMale" value="Male" />
+            <label class="form-check-label" for="sexMale">Male</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="sex" id="sexFemale" value="Female" />
+            <label class="form-check-label" for="sexFemale">Female</label>
+          </div>
+          <!-- (The official expungement form's options are currently 'Male' and 'Female')
+                  <div class="form-check">
+                      <input class="form-check-input" type="radio" name="sex" id="other" value="other">
+                      <label class="form-check-label" for="other">
+                          Other
+                      </label>
+                  </div>
+              -->
+        </div>
+        <hr />
+        <div class="row g-2 mb-2">
+          <div class="col-md-12">
+            <input type="text" id="alternate_address_line1_input" class="form-control" placeholder="Address Line 1" />
+          </div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-12">
+            <input type="text" id="alternate_address_line2_input" class="form-control" placeholder="Address Line 2" />
+          </div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-12">
+            <input type="text" id="alternate_address_line3_input" class="form-control" placeholder="Address Line 3" />
+          </div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-12">
+            <input type="text" id="alternate_phone_input" class="form-control" placeholder="Phone" />
+          </div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-12">
+            <input type="text" id="alternate_email_input" class="form-control" placeholder="Email" />
+          </div>
+        </div>
+        <div class="btn-group mb-4" role="group">
+          <button id="confirm_name_override" class="btn btn-primary mt-2">
+            Confirm
+          </button>
+          <button id="cancel_name_override" class="btn btn-danger mt-2">
+            Cancel
+          </button>
+        </div>
       </div>
+      <div id="attorney_info_container" style="display: none;">
+        <!-- Attorney Type Toggle -->
+        <div class="row g-2 mb-3">
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="attorney_type_toggle">
+              <label class="form-check-label" for="attorney_type_toggle">Public Defender</label>
+            </div>
+          </div>
+        </div>
 
+        <div class="row g-2">
+          <!-- Common Fields -->
+          <div class="col-md-4">
+            <input type="text" class="form-control" id="attorney_name_input" placeholder="Attorney Name">
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control" id="attorney_registration_input"
+              placeholder="Attorney Registration Number">
+          </div>
+          <div class="col-md-4">
+            <select class="form-select" id="circuit_ordinal_input">
+              <option value="" selected disabled>Select Circuit</option>
+              <option value="First">First</option>
+              <option value="Second">Second</option>
+              <option value="Third">Third</option>
+              <option value="Fifth">Fifth</option>
+            </select>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- Public Defender Fields -->
+        <div id="public_defender_fields" style="display: none;">
+          <div class="row g-2 mb-2">
+            <div class="col-md-6">
+              <input type="text" class="form-control" id="head_pd_name_input" placeholder="Head Public Defender Name">
+            </div>
+            <div class="col-md-6">
+              <input type="text" class="form-control" id="head_pd_registration_input"
+                placeholder="Head Public Defender Registration">
+            </div>
+          </div>
+        </div>
+
+        <!-- Private Attorney Fields -->
+        <div id="private_attorney_fields">
+          <div class="row g-2 mb-2">
+            <div class="col-md-12">
+              <input type="text" class="form-control" id="firm_name_input" placeholder="Firm Name">
+            </div>
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-md-12">
+              <input type="text" class="form-control" id="attorney_address_1_input"
+                placeholder="Attorney Address Line 1">
+            </div>
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-md-12">
+              <input type="text" class="form-control" id="attorney_address_2_input"
+                placeholder="Attorney Address Line 2">
+            </div>
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-md-12">
+              <input type="text" class="form-control" id="attorney_address_3_input"
+                placeholder="Attorney Address Line 3">
+            </div>
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-md-12">
+              <input type="text" class="form-control" id="attorney_address_4_input"
+                placeholder="Attorney Address Line 4">
+            </div>
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-md-4">
+              <input type="tel" class="form-control" id="attorney_telephone_input" placeholder="Attorney Telephone">
+            </div>
+            <div class="col-md-4">
+              <input type="tel" class="form-control" id="attorney_fax_input" placeholder="Attorney Fax">
+            </div>
+            <div class="col-md-4">
+              <input type="email" class="form-control" id="attorney_email_input" placeholder="Attorney Email">
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-group mb-4" role="group">
+          <button type="button" class="btn btn-primary" id="confirm_attorney_info">Confirm</button>
+          <button type="button" class="btn btn-danger" id="cancel_attorney_info">Cancel</button>
+        </div>
+      </div>
       <div id="tablediv">
         <!-- Table content will be dynamically populated -->
       </div>
@@ -453,5 +525,6 @@
     <script src="libs/jspdf.umd.min.js"></script>
     <script src="libs/pdf-lib.min.js"></script>
     <script src="libs/jszip.min.js"></script>
-  </body>
+</body>
+
 </html>
