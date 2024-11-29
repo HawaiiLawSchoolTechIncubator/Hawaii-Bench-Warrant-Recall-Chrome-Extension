@@ -52,7 +52,7 @@ function saveClientToChromeLocalStorage(firstname, lastname) {
         }
     });
 }
-function saveToChromeLocalStorage(caseid, case_assessment, court_location, filing_date, defendant_name, caseDetails, override = false) {
+function saveToChromeLocalStorage(caseid, case_assessment, court_location, filing_date, defendant_name, caseDetails, override = false, overrideWarrant = false) {
     chrome.storage.local.get(null, function (items) {
         console.log("Items:");
         console.dir(items);
@@ -73,7 +73,15 @@ function saveToChromeLocalStorage(caseid, case_assessment, court_location, filin
             });
         }
 
-        // Define the new case object
+        if (caseDetails?.warrantStatus?.latestWarrantDate instanceof Date) {
+            caseDetails.warrantStatus.latestWarrantDate = caseDetails.warrantStatus.latestWarrantDate.toLocaleDateString();
+        }
+
+        if (caseDetails?.warrantStatus?.latestRecallDate instanceof Date) {
+            caseDetails.warrantStatus.latestRecallDate = caseDetails.warrantStatus.latestRecallDate.toLocaleDateString();
+        }
+        
+        // Define the new case object   
         var newCase = {
             'CaseNumber': caseid,
             'Expungeable': case_assessment,
@@ -81,6 +89,7 @@ function saveToChromeLocalStorage(caseid, case_assessment, court_location, filin
             'FilingDate': filing_date,
             'DefendantName': defendant_name,
             'Override': override,
+            'OverrideWarrant': overrideWarrant,
             ...caseDetails
         };
 

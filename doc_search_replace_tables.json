@@ -35,7 +35,7 @@
         "ω": "client_consultation_day",
         "υ": "client_consultation_year",
         "χ": "client_consultation_town",
-        "ψ": "consulted_at_consultation_event",
+        "ψ": "consult_verb_phrase",
         "Ϝ": "circuit_ordinal"
     },
     "private_attorney": {
@@ -62,7 +62,7 @@
         "ω": "client_consultation_day",
         "υ": "client_consultation_year",
         "χ": "client_consultation_town",
-        "ψ": "consulted_at_consultation_event",
+        "ψ": "consult_verb_phrase",
         "Ϝ": "circuit_ordinal"
     }
   }

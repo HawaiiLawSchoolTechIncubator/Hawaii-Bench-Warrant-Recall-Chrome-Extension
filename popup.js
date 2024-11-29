@@ -58,6 +58,12 @@ function loadAlternateInfo() {
     );
   });
 }
+// FINAL DETERMINATION OF BENCH WARRANT STATUS TO DECIDE WHETHER TO GENERATE BENCH WARRANT PAPERWORK
+function isWarrantStatusSufficientForPaperwork(warrantStatus, override) {
+  console.log("Warrant status:", warrantStatus);
+  console.log("Override:", override);
+  return warrantStatus?.hasOutstandingWarrant || override;
+}
 
 // FINAL DETERMINATION OF EXPUNGEABILITY TO DECIDE WHETHER TO GENERATE EXPUNGEMENT PAPERWORK
 function isExpungeableEnoughForPaperwork(expungeableStatus, override) {
@@ -509,9 +515,35 @@ function generateOverrideCell(caseData, mode) {
               : "Paperwork will not be generated: check to override"
           }">
           </td>`;
+  } else if (mode === "warrant") {
+    const isAlreadySufficient = isWarrantStatusSufficientForPaperwork(
+      caseData?.warrantStatus
+    );
+    return `<td style="text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="override-checkbox" 
+          data-case-number="${caseData["CaseNumber"]}" 
+          ${caseData["OverrideWarrant"] ? "checked" : ""} 
+          ${isAlreadySufficient ? "disabled" : ""}
+          title="${
+            isAlreadySufficient
+              ? "Warrant paperwork will be generated: no need to override"
+              : "Warrant paperwork will not be generated: check to override"
+          }">
+          </td>`;
   }
-  return "<td></td>"; // Empty override column in warrant mode
+  return "<td></td>"; // Empty override column
 }
+
+// function attachEventListeners(allcases) {
+//   // Case link clicks
+//   $(".case-link").on("click", async function (e) {
+//     e.preventDefault();
+//     // Get fresh case data from storage to ensure we have latest override status
+//     const cases = await getCases();
+//     const caseIndex = $(this).data("case-index");
+//     const caseData = cases[caseIndex];
+//     displayCaseDetails(caseData);
+//   });
 
 function attachEventListeners(allcases) {
   // Case link clicks
@@ -541,15 +573,27 @@ function updateOverrideStatus(caseNumber, isOverridden) {
   chrome.storage.local.get("cases", function (result) {
     let cases = result.cases || [];
     const caseIndex = cases.findIndex((c) => c.CaseNumber === caseNumber);
+
     if (caseIndex !== -1) {
-      cases[caseIndex].Override = isOverridden;
-      chrome.storage.local.set({ cases: cases }, function () {
-        console.log(
-          `Override status updated for case ${caseNumber}: ${isOverridden}`
-        );
-        // Refresh the cases display to reflect the updated override status
-        displayCases();
-      });
+      if (currentMode === "expungement") {
+        cases[caseIndex].Override = isOverridden;
+        chrome.storage.local.set({ cases: cases }, function () {
+          console.log(
+            `Expungement override status updated for case ${caseNumber}: ${isOverridden}`
+          );
+          // Refresh the cases display to reflect the updated override status
+          displayCases();
+        });
+      } else if (currentMode === "warrant") {
+        cases[caseIndex].OverrideWarrant = isOverridden;
+        chrome.storage.local.set({ cases: cases }, function () {
+          console.log(
+            `Warrant override status updated for case ${caseNumber}: ${isOverridden}`
+          );
+          // Refresh the cases display to reflect the updated override status
+          displayCases();
+        });
+      }
     } else {
       console.error(`Case ${caseNumber} not found in storage`);
     }
@@ -638,9 +682,16 @@ jQuery("#emptycases").click(function () {
   });
 });
 
-// Generate warrant history table for use with displayCaseDetails function
-function generateWarrantHistoryTable(warrantEntries) {
+// Generate generateWarrantHistoryTable for use with displayCaseDetails function with visual indication of clickable dates
+function generateWarrantHistoryTable(warrantEntries, caseData) {
   if (!warrantEntries || warrantEntries.length === 0) return "";
+
+  const isClickable =
+    currentMode === "warrant" &&
+    isWarrantStatusSufficientForPaperwork(
+      caseData?.warrantStatus,
+      caseData?.OverrideWarrant
+    );
 
   return `
     <div class="warrant-history mt-3">
@@ -659,7 +710,20 @@ function generateWarrantHistoryTable(warrantEntries) {
             .map(
               (entry) => `
             <tr>
-              <td>${entry.date}</td>
+              <td>
+                <a href="#" 
+                   class="warrant-date-link" 
+                   data-date="${
+                     new Date(entry.date).toISOString().split("T")[0]
+                   }"
+                   style="${
+                     isClickable
+                       ? "text-decoration: underline; color: blue; cursor: pointer;"
+                       : "text-decoration: none; color: inherit; cursor: default;"
+                   }">
+                  ${new Date(entry.date).toLocaleDateString()}
+                </a>
+              </td>
               <td>${entry.warrantAction || "N/A"}</td>
               <td>${entry.warrantType || "N/A"}</td>
               <td>
@@ -679,6 +743,47 @@ function generateWarrantHistoryTable(warrantEntries) {
     </div>
   `;
 }
+
+// function generateWarrantHistoryTable(warrantEntries) {
+//   if (!warrantEntries || warrantEntries.length === 0) return "";
+
+//   return `
+//     <div class="warrant-history mt-3">
+//       <h5>Warrant History</h5>
+//       <table class="table table-sm table-bordered">
+//         <thead>
+//           <tr>
+//             <th>Date</th>
+//             <th>Action</th>
+//             <th>Type</th>
+//             <th>Details</th>
+//           </tr>
+//         </thead>
+//         <tbody>
+//           ${warrantEntries
+//             .map(
+//               (entry) => `
+//             <tr>
+//               <td>${entry.date}</td>
+//               <td>${entry.warrantAction || "N/A"}</td>
+//               <td>${entry.warrantType || "N/A"}</td>
+//               <td>
+//                 ${entry.docketText}
+//                 ${
+//                   entry.warrantDetails?.bailAmount
+//                     ? `<br>Bail: $${entry.warrantDetails.bailAmount}`
+//                     : ""
+//                 }
+//               </td>
+//             </tr>
+//           `
+//             )
+//             .join("")}
+//         </tbody>
+//       </table>
+//     </div>
+//   `;
+// }
 
 // Display case details
 async function displayCaseDetails(caseData) {
@@ -837,29 +942,33 @@ async function displayCaseDetails(caseData) {
   });
 
   /////////////////////// Populate additional factors if they exist ///////////////////////
-  if (caseData.additionalFactors && Object.keys(caseData.additionalFactors).length > 0) {
+  if (
+    caseData.additionalFactors &&
+    Object.keys(caseData.additionalFactors).length > 0
+  ) {
     // Create a copy of additionalFactors and process warrant status
     let additionalFactorsProcessed = { ...caseData.additionalFactors };
     let warrantTableHtml = "";
-    
+
     // Process warrant status if it exists
     if (additionalFactorsProcessed?.warrantDetails) {
-        if (additionalFactorsProcessed.warrantDetails.warrantEntries) {
-            warrantTableHtml = generateWarrantHistoryTable(
-                additionalFactorsProcessed.warrantDetails.warrantEntries
-            );
-        }
-        additionalFactorsProcessed.warrantDetails = 
-            additionalFactorsProcessed.warrantDetails.explanation;
+      if (additionalFactorsProcessed.warrantDetails.warrantEntries) {
+        warrantTableHtml = generateWarrantHistoryTable(
+          additionalFactorsProcessed.warrantDetails.warrantEntries,
+          caseData
+        );
+      }
+      additionalFactorsProcessed.warrantDetails =
+        additionalFactorsProcessed.warrantDetails.explanation;
     }
 
     // Build complete HTML content
     let additionalFactorsHtml = '<h4 class="mb-3">Additional Factors:</h4>';
-    
+
     // Add factors card if there are factors to display
     const factorsHtml = generatePropertiesHtml(additionalFactorsProcessed);
     if (factorsHtml) {
-        additionalFactorsHtml += `
+      additionalFactorsHtml += `
             <div class="card mb-3">
                 <div class="card-body">
                     ${factorsHtml}
@@ -870,7 +979,7 @@ async function displayCaseDetails(caseData) {
 
     // Add warrant history table if it exists
     if (warrantTableHtml) {
-        additionalFactorsHtml += warrantTableHtml;
+      additionalFactorsHtml += warrantTableHtml;
     }
 
     // Set complete HTML content at once
@@ -916,7 +1025,7 @@ async function displayCaseDetails(caseData) {
   }
 
   /// Initialize warrant UI if in warrant mode - but only AFTER all other DOM manipulation
-  if (currentMode === 'warrant') {
+  if (currentMode === "warrant") {
     // Delay initialization slightly to ensure DOM is ready
     setTimeout(() => initializeWarrantUI(caseData), 0);
   }
@@ -931,44 +1040,85 @@ async function displayCaseDetails(caseData) {
 let warrantDetails = {
   consultationDate: "",
   consultationTown: "",
-  consultedAtEvent: false,
+  consultVerbPhrase: "",
   nonAppearanceDate: "",
   warrantIssueDate: "",
   warrantAmount: "",
   caseNumber: "", // Store which case these details belong to
 };
 
-// Add to displayCaseDetails function after setting up warrant history
-function initWarrantDetails(caseData) {
-  const warrantButton = $("#warrant_details_button");
+// // Load warrant details from storage or initialize to defaults
+// async function loadWarrantDetails(caseNumber) {
+//   console.log("loadWarrantDetails called with:", caseNumber);
+//   console.log("warrantDetails before loading:", {...warrantDetails});
+  
+//   if (!caseNumber) {
+//       console.warn("No case number provided to loadWarrantDetails");
+//       return;
+//   }
 
-  // Only show button in warrant mode with outstanding warrant
-  if (
-    currentMode === "warrant" &&
-    caseData.warrantStatus?.hasOutstandingWarrant
-  ) {
-    warrantButton.show();
+//   return new Promise((resolve) => {
+//       chrome.storage.local.get("warrantDetails", function(result) {
+//           console.log("Raw result from storage:", result);
+//           console.log("result.warrantDetails:", result.warrantDetails);
+//           console.log("result.warrantDetails type:", typeof result.warrantDetails);
+//           if (result.warrantDetails) {
+//               console.log("Case specific warrantDetails:", result.warrantDetails[caseNumber]);
+//           }
+          
+//           if (result.warrantDetails && result.warrantDetails[caseNumber]) {
+//               // Use stored values, they take precedence
+//               warrantDetails = {
+//                   ...result.warrantDetails[caseNumber],
+//                   caseNumber
+//               };
+//               console.log("Using stored warrant details:", warrantDetails);
+//           } else {
+//               // No stored values, initialize with empty values
+//               warrantDetails = {
+//                   consultationDate: "",
+//                   consultationTown: "",
+//                   consultVerbPhrase: "",
+//                   nonAppearanceDate: "",
+//                   warrantIssueDate: "",
+//                   warrantAmount: "",
+//                   caseNumber
+//               };
+//               console.log("No stored details, initialized empty:", warrantDetails);
+//           }
+//           resolve(warrantDetails);
+//       });
+//   });
+// }
 
-    // Load any existing warrant details for this case
-    loadWarrantDetails(caseData.CaseNumber);
-  } else {
-    warrantButton.hide();
-  }
-}
-
-// Load warrant details from storage
 async function loadWarrantDetails(caseNumber) {
+  console.log("loadWarrantDetails called with:", caseNumber);
+  console.log("warrantDetails before loading:", {...warrantDetails});
+  
+  if (!caseNumber) {
+      console.warn("No case number provided to loadWarrantDetails");
+      return;
+  }
+
   return new Promise((resolve) => {
-    chrome.storage.local.get("warrantDetails", function (result) {
-      if (result.warrantDetails && result.warrantDetails[caseNumber]) {
-        warrantDetails = {
-          ...warrantDetails,
-          ...result.warrantDetails[caseNumber],
-        };
-        updateWarrantDetailsForm();
-      }
-      resolve(warrantDetails);
-    });
+      chrome.storage.local.get("warrantDetails", function(result) {
+          // If we have stored values for this case, use those
+          if (result.warrantDetails && result.warrantDetails[caseNumber]) {
+              warrantDetails = {
+                  ...result.warrantDetails[caseNumber],
+                  caseNumber
+              };
+              console.log("Using stored warrant details:", warrantDetails);
+          } else {
+              // Otherwise preserve existing values, just ensure caseNumber is set
+              warrantDetails = {
+                  ...warrantDetails,  // Keep existing values
+                  caseNumber          // Just update the case number
+              };
+              console.log("No stored details, preserving existing values:", warrantDetails);
+          }
+          resolve(warrantDetails);
+      });
   });
 }
 
@@ -991,10 +1141,7 @@ async function saveWarrantDetails() {
 function updateWarrantDetailsForm() {
   $("#consultation_date_input").val(warrantDetails.consultationDate);
   $("#consultation_town_input").val(warrantDetails.consultationTown);
-  $("#consulted_at_event_input").prop(
-    "checked",
-    warrantDetails.consultedAtEvent
-  );
+  $("#consult_verb_phrase_input").val(warrantDetails.consultVerbPhrase);
   $("#non_appearance_date_input").val(warrantDetails.nonAppearanceDate);
   $("#warrant_issue_date_input").val(warrantDetails.warrantIssueDate);
   $("#warrant_amount_input").val(warrantDetails.warrantAmount);
@@ -1013,20 +1160,26 @@ function getDateComponents(dateString) {
 }
 
 // Add warrant details handlers
-function attachWarrantDetailsHandlers() {
+function  attachWarrantDetailsHandlers() {
   // Show form when clicking the button
-  $("#warrant_details_button").on("click", function () {
-    $("#warrant_details_section").show();
-    $("#warrant_details_section").get(0).scrollIntoView({ behavior: "smooth" });
-  });
+  $("#warrant_details_button")
+    .off("click")
+    .on("click", async function () {
+      // Ensure we have the latest warrant details before showing the form
+      await loadWarrantDetails(warrantDetails.caseNumber);
+      showWarrantDetailsForm();
+      $("#warrant_details_section").show();
+      $("#warrant_details_section")
+        .get(0)
+        .scrollIntoView({ behavior: "smooth" });
+    });
 
-  // Save button handler
   $("#save_warrant_details").on("click", async function () {
     warrantDetails = {
       ...warrantDetails,
       consultationDate: $("#consultation_date_input").val(),
       consultationTown: $("#consultation_town_input").val(),
-      consultedAtEvent: $("#consulted_at_event_input").is(":checked"),
+      consultVerbPhrase: $("#consult_verb_phrase_input").val(),
       nonAppearanceDate: $("#non_appearance_date_input").val(),
       warrantIssueDate: $("#warrant_issue_date_input").val(),
       warrantAmount: $("#warrant_amount_input").val(),
@@ -1039,7 +1192,7 @@ function attachWarrantDetailsHandlers() {
   // Cancel button handler
   $("#cancel_warrant_details").on("click", function () {
     $("#warrant_details_section").hide();
-    updateWarrantDetailsForm(); // Reset to last saved state
+    showWarrantDetailsForm(); // Reset to last saved state
   });
 
   // Add input listeners for immediate state updates
@@ -1049,8 +1202,8 @@ function attachWarrantDetailsHandlers() {
   $("#consultation_town_input").on("input", function () {
     warrantDetails.consultationTown = $(this).val().trim();
   });
-  $("#consulted_at_event_input").on("change", function () {
-    warrantDetails.consultedAtEvent = $(this).is(":checked");
+  $("#consult_verb_phrase_input").on("input", function () {
+    warrantDetails.consultVerbPhrase = $(this).val().trim();
   });
   $("#non_appearance_date_input").on("change", function () {
     warrantDetails.nonAppearanceDate = $(this).val();
@@ -1061,17 +1214,196 @@ function attachWarrantDetailsHandlers() {
   $("#warrant_amount_input").on("input", function () {
     warrantDetails.warrantAmount = $(this).val().trim();
   });
+
+  // Handler for warrant date links
+  $(document).on("click", ".warrant-date-link", async function (e) {
+    e.preventDefault();
+
+    // Get current case data
+    const cases = await getCases();
+    const caseNumber = $("#case-number").text();
+    const caseData = cases.find((c) => c.CaseNumber === caseNumber);
+
+    if (
+      currentMode === "warrant" &&
+      isWarrantStatusSufficientForPaperwork(
+        caseData?.warrantStatus,
+        caseData?.OverrideWarrant
+      )
+    ) {
+      const date = $(this).data("date");
+
+      // Show the warrant details section if hidden
+      $("#warrant_details_section").show();
+
+      // Set the warrant issue date
+      $("#warrant_issue_date_input").val(date);
+      warrantDetails.warrantIssueDate = date;
+
+      // Scroll to the input field
+      $("#warrant_issue_date_input")[0].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  });
+}
+
+// Show warrant details form with current values
+function showWarrantDetailsForm() {
+  console.log("Showing warrant details form with warrantDetails:", warrantDetails);
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Set default values if they're not already set
+  if (!warrantDetails.consultationDate) {
+      warrantDetails.consultationDate = today;
+  }
+
+  // Log each form field and its intended value before setting
+  console.log("Setting consultation_date_input to:", warrantDetails.consultationDate || today);
+  console.log("Setting warrant_issue_date_input to:", warrantDetails.warrantIssueDate);
+  console.log("Setting warrant_amount_input to:", warrantDetails.warrantAmount);
+
+  // Get references to form elements and verify they exist
+  const consultationDateInput = $("#consultation_date_input");
+  const warrantIssueDateInput = $("#warrant_issue_date_input");
+  const warrantAmountInput = $("#warrant_amount_input");
+
+  console.log("Form elements found:", {
+      consultationDateInput: consultationDateInput.length > 0,
+      warrantIssueDateInput: warrantIssueDateInput.length > 0,
+      warrantAmountInput: warrantAmountInput.length > 0
+  });
+
+  // Update all form fields with current values
+  if (consultationDateInput.length) {
+      consultationDateInput.val(warrantDetails.consultationDate || today);
+  }
+  if (warrantIssueDateInput.length) {
+      console.log("Setting warrant issue date...");
+      warrantIssueDateInput.val(warrantDetails.warrantIssueDate || "");
+      console.log("Warrant issue date after setting:", warrantIssueDateInput.val());
+  }
+  if (warrantAmountInput.length) {
+      console.log("Setting warrant amount...");
+      warrantAmountInput.val(warrantDetails.warrantAmount || "");
+      console.log("Warrant amount after setting:", warrantAmountInput.val());
+  }
+  
+  // Also try setting values directly through vanilla JavaScript
+  const warrantIssueDateElement = document.getElementById('warrant_issue_date_input');
+  const warrantAmountElement = document.getElementById('warrant_amount_input');
+  
+  if (warrantIssueDateElement) {
+      warrantIssueDateElement.value = warrantDetails.warrantIssueDate || "";
+      console.log("Warrant issue date after direct set:", warrantIssueDateElement.value);
+  }
+  
+  if (warrantAmountElement) {
+      warrantAmountElement.value = warrantDetails.warrantAmount || "";
+      console.log("Warrant amount after direct set:", warrantAmountElement.value);
+  }
+
+  // Update the rest of the fields
+  $("#consultation_town_input").val(warrantDetails.consultationTown || "");
+  $("#consult_verb_phrase_input").val(warrantDetails.consultVerbPhrase || "");
+  $("#non_appearance_date_input").val(warrantDetails.nonAppearanceDate || "");
+
+  // Log final state
+  console.log("Form values after setting:", {
+      consultationDate: $("#consultation_date_input").val(),
+      warrantIssueDate: $("#warrant_issue_date_input").val(),
+      warrantAmount: $("#warrant_amount_input").val()
+  });
 }
 
 // Handle warrant details section creation
-function initializeWarrantUI(caseData) {
-  // Only proceed if we're in warrant mode and have an outstanding warrant
-  if (currentMode === 'warrant' && caseData.warrantStatus?.hasOutstandingWarrant) {
+async function initializeWarrantUI(caseData) {
+  console.log("Initializing warrant UI");
+  console.log("Case data:", caseData);
+
+  // Only proceed if we're in warrant mode and have a sufficient warrant status
+  if (currentMode === 'warrant' && 
+      isWarrantStatusSufficientForPaperwork(caseData.warrantStatus, caseData.OverrideWarrant)) {
+      
+      // First load any existing stored values
+      await loadWarrantDetails(caseData.CaseNumber);
+      
+      // Then set defaults only for empty values
+      if (!warrantDetails.consultationDate) {
+          warrantDetails.consultationDate = new Date().toISOString().split('T')[0];
+      }
+
+      if (!warrantDetails.warrantIssueDate && caseData.warrantStatus?.latestWarrantDate) {
+          try {
+              const [month, day, year] = caseData.warrantStatus.latestWarrantDate.split('/');
+              warrantDetails.warrantIssueDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          } catch (error) {
+              console.error("Error formatting warrant date:", error);
+          }
+      }
+
+      if (!warrantDetails.warrantAmount && caseData.warrantStatus?.latestBailAmount) {
+          const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
+          if (!isNaN(numericBail)) {
+              warrantDetails.warrantAmount = numericBail;
+          }
+      }
+
+      console.log("Final warrantDetails after setting defaults:", warrantDetails);
+      
       // Initialize the warrant details functionality
       attachWarrantDetailsHandlers();
-      initWarrantDetails(caseData);
+      const warrantButton = $("#warrant_details_button");
+      warrantButton.show();
+  } else {
+      $("#warrant_details_button").hide();
   }
 }
+// async function initializeWarrantUI(caseData) {
+//   console.log("Initializing warrant UI");
+//   console.log("Case data:", caseData);
+
+//   // Only proceed if we're in warrant mode and have a sufficient warrant status
+//   if (currentMode === 'warrant' &&
+//       isWarrantStatusSufficientForPaperwork(caseData.warrantStatus, caseData.OverrideWarrant)) {
+
+//       // Set the case number in warrantDetails
+//       warrantDetails.caseNumber = caseData.CaseNumber;
+
+//       // Load existing warrant details before showing the button
+//       await loadWarrantDetails(caseData.CaseNumber);
+
+//       // Set default values in warrantDetails object
+//       const today = new Date().toISOString().split('T')[0];
+//       warrantDetails.consultationDate = warrantDetails.consultationDate || today;
+
+//       if (caseData.warrantStatus?.latestWarrantDate) {
+//           try {
+//               const [month, day, year] = caseData.warrantStatus.latestWarrantDate.split('/');
+//               const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+//               warrantDetails.warrantIssueDate = warrantDetails.warrantIssueDate || formattedDate;
+//           } catch (error) {
+//               console.error("Error formatting warrant date:", error);
+//           }
+//       }
+
+//       if (caseData.warrantStatus?.latestBailAmount) {
+//           const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
+//           if (!isNaN(numericBail)) {
+//               warrantDetails.warrantAmount = warrantDetails.warrantAmount || numericBail;
+//           }
+//       }
+
+//       // Initialize the warrant details functionality
+//       attachWarrantDetailsHandlers();
+//       const warrantButton = $("#warrant_details_button");
+//       warrantButton.show();
+//   } else {
+//       $("#warrant_details_button").hide();
+//   }
+// }
 
 /////////////////////////// ATTORNEY INFORMATION ///////////////////////////
 // Attorney information state

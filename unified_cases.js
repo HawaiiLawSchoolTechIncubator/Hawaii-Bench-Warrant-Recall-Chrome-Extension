@@ -1235,12 +1235,14 @@ class CaseProcessor {
       );
 
     // Retrieve the existing override status if the case already exists
-    let existingOverride = false;
+    let existingOverride = false; // Override expungement determination
+    let existingOverrideWarrant = false; // Override warrant status
     await new Promise((resolve) => {
         chrome.storage.local.get('cases', function(result) {
             const existingCase = result.cases?.find(c => c.CaseNumber === caseDetails.caseId);
             if (existingCase) {
                 existingOverride = existingCase.Override || false;
+                existingOverrideWarrant = existingCase.OverrideWarrant || false;
             }
             resolve();
         });
@@ -1259,13 +1261,15 @@ class CaseProcessor {
         ...caseDetails,
         overallExpungeability,
       },
-      existingOverride 
+      existingOverride,
+      existingOverrideWarrant
     );
 
     console.log("Saving case to storage:", {
       caseId: this.caseInfo.caseId,
       status: overallExpungeability.status,
-      override: existingOverride
+      override: existingOverride,
+      overrideWarrant: existingOverrideWarrant
     });
 
     this.updateUI(caseDetails.charges, overallExpungeability.status, caseDetails.warrantStatus);
@@ -2778,7 +2782,7 @@ class DocketService {
         isWarrantRelated: false,
         type: null,
         action: null,
-        details: {}
+        bailAmount: null,
     };
 
     // Check for warrant type
@@ -2787,10 +2791,10 @@ class DocketService {
             analysis.isWarrantRelated = true;
             analysis.type = type;
             
-            // Extract additional details (like bail amounts)
+            // Extract bail amount
             const bailMatch = text.match(/\$\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/);
             if (bailMatch) {
-                analysis.details.bailAmount = bailMatch[1];
+                analysis.bailAmount = bailMatch[1];
             }
         }
     }
@@ -2804,7 +2808,7 @@ class DocketService {
     }
     // Set action to "bail set" if bail amount is found (or append "bail set"
     // to existing action if it's already set)
-    if (analysis.details.bailAmount) {
+    if (analysis.bailAmount) {
       if (!analysis.action) {
         analysis.action = 'bail set';
       } else if (analysis.action !== 'bail set') {
@@ -2826,6 +2830,7 @@ class DocketService {
       warrantEntries: [],
       latestWarrantDate: null,
       latestRecallDate: null,
+      latestBailAmount: null,
       explanation: ""
   };
 
@@ -2852,7 +2857,7 @@ class DocketService {
                     ...entry,
                     warrantType: warrantAnalysis.type,
                     warrantAction: warrantAnalysis.action,
-                    warrantDetails: warrantAnalysis.details
+                    warrantBailAmount: warrantAnalysis.bailAmount
                 };
             }
             return null;
@@ -2865,6 +2870,7 @@ class DocketService {
     // Set latest dates based on actions
     const latestWarrant = results.warrantEntries.find(entry => entry.warrantAction === 'issue');
     const latestRecall = results.warrantEntries.find(entry => entry.warrantAction === 'recall');
+    const latestBailAmount = results.warrantEntries.find(entry => entry.warrantAction === 'bail set');
     
 
     if (latestWarrant) {
@@ -2872,6 +2878,9 @@ class DocketService {
     }
     if (latestRecall) {
         results.latestRecallDate = latestRecall.date;
+    }
+    if (latestBailAmount) {
+        results.latestBailAmount = latestBailAmount.warrantBailAmount;
     }
   }
 
@@ -2901,9 +2910,9 @@ class DocketService {
             results.explanation = 
                 `Found warrant ${latestAction.warrantAction} on ${latestAction.date.toLocaleDateString()} ` +
                 `but no corresponding issuance entry. ` +
-                `${latestAction.warrantDetails.bailAmount ? 
-                    `(Bail amount: $${latestAction.warrantDetails.bailAmount})` : 
-                    ''}`;
+                `${latestAction.warrantbailAmount ? 
+                    `(Bail amount: $${latestAction.warrantbailAmount})` : 
+                    ''}`;               
             return;
         }
         
@@ -2927,8 +2936,8 @@ class DocketService {
             `Warrant issued on ${latestWarrant.date.toLocaleDateString()} was ` +
             `${latestAction.warrantAction === 'recall' ? 'recalled' : 'executed'} ` +
             `on ${latestAction.date.toLocaleDateString()}.` +
-            `${latestWarrant.warrantDetails.bailAmount ? 
-                ` (Bail was set at $${latestWarrant.warrantDetails.bailAmount})` : 
+            `${latestWarrant.warrantbailAmount ? 
+                ` (Bail was set at $${latestWarrant.warrantbailAmount})` : 
                 ''}`;
     } else {
         // Warrant is still outstanding
@@ -2936,8 +2945,8 @@ class DocketService {
         results.explanation = 
             `${latestWarrant.warrantType.charAt(0).toUpperCase() + latestWarrant.warrantType.slice(1)} warrant ` +
             `issued on ${latestWarrant.date.toLocaleDateString()} ` +
-            `${latestWarrant.warrantDetails.bailAmount ? 
-                `with bail set at $${latestWarrant.warrantDetails.bailAmount} ` : 
+            `${latestWarrant.warrantbailAmount ? 
+                `with bail set at $${latestWarrant.warrantbailAmount} ` : 
                 ''}` +
             `remains outstanding.`;
     }

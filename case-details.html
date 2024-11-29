@@ -34,7 +34,7 @@
             <div class="card-body">
                 <!-- Consultation Details -->
                 <div class="mb-3">
-                    <h6>Consultation Information</h6>
+                    <h6>Consultation Date and Location</h6>
                     <div class="row g-2">
                         <div class="col-md-4">
                             <input type="date" class="form-control" id="consultation_date_input" 
@@ -59,14 +59,14 @@
                 <h6>“On that date, DEFENDANT <b><i>(describe consultation circumstances)</i></b> and requested that the bench warrant be recalled...”</h6>
                     <div class="row g-2">
                     <div class="col-md-4">
-                        <input type="text" class="form-control" id="consulted_at_consultation_event" 
+                        <input type="text" class="form-control" id="consult_verb_phrase_input" 
                             placeholder="e.g., attended the Bench Warrant Clinic at Waianae Public Library">
                         </div>
                 </div>
 
                 <!-- Non-appearance Details -->
                 <div class="mb-3">
-                    <h6>Non-appearance Information</h6>
+                    <h6>Non-Appearance Date</h6>
                     <div class="row g-2">
                         <div class="col-md-12">
                             <input type="date" class="form-control" id="non_appearance_date_input" 
@@ -77,25 +77,30 @@
     
                 <!-- Warrant Details -->
                 <div class="mb-3">
-                    <h6>Warrant Information</h6>
+                    <h6>Warrant Issue Date</h6>
                     <div class="row g-2">
                         <div class="col-md-6">
                             <input type="date" class="form-control" id="warrant_issue_date_input" 
                                    placeholder="Warrant Issue Date">
                         </div>
-                        <div class="col-md-6">
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="warrant_amount_input" 
-                                       placeholder="Warrant Amount">
-                            </div>
+                    </div>
+                </div>
+
+                <!-- Warrant Amount -->
+                <div class="mb-3">
+                    <h6>Warrant Amount</h6>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="warrant_amount_input" 
+                                placeholder="500">
                         </div>
                     </div>
                 </div>
     
                 <div class="btn-group">
                     <button type="button" class="btn btn-primary" id="save_warrant_details">Save</button>
-                    <button type="button" class="btn btn-secondary" id="cancel_warrant_details">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="cancel_warrant_details">Cancel</button>
                 </div>
             </div>
         </div>
