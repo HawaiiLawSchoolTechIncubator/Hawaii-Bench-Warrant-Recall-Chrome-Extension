@@ -29,33 +29,30 @@ function saveMode(mode) {
 
 function loadAlternateInfo() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(
-      [
-        "alternateFirstName",
-        "alternateMiddleName",
-        "alternateLastName",
-        "alternateAddressLine1",
-        "alternateAddressLine2",
-        "alternateAddressLine3",
-        "alternatePhone",
-        "alternateEmail",
-        "alternateDOB",
-        "alternateSex",
-      ],
-      function (result) {
-        alternateFirstName = result.alternateFirstName || "";
-        alternateMiddleName = result.alternateMiddleName || "";
-        alternateLastName = result.alternateLastName || "";
-        alternateAddressLine1 = result.alternateAddressLine1 || "";
-        alternateAddressLine2 = result.alternateAddressLine2 || "";
-        alternateAddressLine3 = result.alternateAddressLine3 || "";
-        alternatePhone = result.alternatePhone || "";
-        alternateEmail = result.alternateEmail || "";
-        alternateDOB = result.alternateDOB || "";
-        alternateSex = result.alternateSex || "";
-        resolve();
-      }
-    );
+      chrome.storage.local.get([
+          "alternateFirstName",
+          "alternateMiddleName",
+          "alternateLastName",
+          "alternateAddressLine1",
+          "alternateAddressLine2",
+          "alternateAddressLine3",
+          "alternatePhone",
+          "alternateEmail",
+          "alternateDOB",
+          "alternateSex"
+      ], function(result) {
+          alternateFirstName = result.alternateFirstName || "";
+          alternateMiddleName = result.alternateMiddleName || "";
+          alternateLastName = result.alternateLastName || "";
+          alternateAddressLine1 = result.alternateAddressLine1 || "";
+          alternateAddressLine2 = result.alternateAddressLine2 || "";
+          alternateAddressLine3 = result.alternateAddressLine3 || "";
+          alternatePhone = result.alternatePhone || "";
+          alternateEmail = result.alternateEmail || "";
+          alternateDOB = result.alternateDOB || "";
+          alternateSex = result.alternateSex || "";
+          resolve();
+      });
   });
 }
 
@@ -175,12 +172,12 @@ function normalizeDefendantName(name) {
 
 async function handleGenerateDocuments() {
   try {
-    const docGenerator = new DocumentGenerator();
-    await docGenerator.loadAlternateInfo();
-    await docGenerator.generateAllDocuments(currentMode);
+      const docGenerator = new DocumentGenerator();
+      await docGenerator.loadAlternateInfo();
+      await docGenerator.generateAllDocuments(currentMode);
   } catch (error) {
-    console.error("Error generating documents:", error);
-    // Show error to user via UI
+      console.error("Error generating documents:", error);
+      // Show error to user via UI
   }
 }
 
@@ -253,7 +250,7 @@ async function displayClientInfo() {
   $("#alternate_date_of_birth_input").val(alternateDOB);
   $(`input[name="sex"][value="${alternateSex}"]`).prop("checked", true);
 
-  $(document).on("click", "#confirm_name_override", async function () {
+  $(document).on("click", "#confirm_name_override", async function() {
     console.log("Confirm button clicked");
     //console.log("Event target:", e.target);
 
@@ -269,23 +266,23 @@ async function displayClientInfo() {
     alternateSex = $('input[name="sex"]:checked').val() || "";
     await saveAlternateInfo();
     console.log("Name and address override confirmed:", {
-      alternateFirstName,
-      alternateMiddleName,
-      alternateLastName,
-      alternateAddressLine1,
-      alternateAddressLine2,
-      alternateAddressLine3,
+        alternateFirstName,
+        alternateMiddleName,
+        alternateLastName,
+        alternateAddressLine1,
+        alternateAddressLine2,
+        alternateAddressLine3,
     });
     $("#alternate_name_container").hide();
     await displayCases();
   });
 
-  $(document).on("click", "#cancel_name_override", function () {
-    console.log("Cancel button clicked");
-    //console.log("Event target:", e.target);
+  $(document).on("click", "#cancel_name_override", function() {
+      console.log("Cancel button clicked");
+      //console.log("Event target:", e.target);
 
-    updateInputFields();
-    $("#alternate_name_container").hide();
+      updateInputFields();
+      $("#alternate_name_container").hide();
   });
 
   // Add input listeners for text fields
@@ -559,55 +556,57 @@ function updateOverrideStatus(caseNumber, isOverridden) {
 // When the popup opens
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("DOM loaded");
-
+  
   const radioButtons = document.querySelectorAll('input[name="tool-mode"]');
   console.log("Found radio buttons:", radioButtons);
-
-  radioButtons.forEach((radio) => {
-    console.log("Adding listener to:", radio.id);
-    radio.addEventListener("change", async function () {
-      console.log("Mode switch clicked:", this.value);
-      if (this.checked) {
-        await saveMode(this.value);
-        console.log("Current mode after save:", currentMode);
-
-        // Check if we're in case details view
-        const isInCaseDetails = $("#charges-container").length > 0;
-        if (isInCaseDetails) {
-          // Find the case data and refresh the details view
-          const cases = await getCases();
-          const caseNumber = $("#case-number").text();
-          const caseData = cases.find((c) => c.CaseNumber === caseNumber);
-          if (caseData) {
-            displayCaseDetails(caseData);
+  
+  radioButtons.forEach(radio => {
+      console.log("Adding listener to:", radio.id);
+      radio.addEventListener('change', async function() {
+          console.log('Mode switch clicked:', this.value);
+          if (this.checked) {
+              await saveMode(this.value);
+              console.log('Current mode after save:', currentMode);
+              
+              // Check if we're in case details view
+              const isInCaseDetails = $('#charges-container').length > 0;
+              if (isInCaseDetails) {
+                  // Find the case data and refresh the details view
+                  const cases = await getCases();
+                  const caseNumber = $('#case-number').text();
+                  const caseData = cases.find(c => c.CaseNumber === caseNumber);
+                  if (caseData) {
+                      displayCaseDetails(caseData);
+                  }
+              } else {
+                  // If in main view, refresh the case table
+                  await displayCases();
+              }
           }
-        } else {
-          // If in main view, refresh the case table
-          await displayCases();
-        }
-      }
-    });
+      });
   });
   // Initialize all required functionality
   try {
     await Promise.all([
-      loadMode(),
-      loadAttorneyInfo(),
-      displayClientInfo(),
-      displayCases(),
+        loadMode(),
+        loadAttorneyInfo(),
+        displayClientInfo(),
+        displayCases()
     ]);
 
     // Add attorney info event listeners after everything is loaded
     addAttorneyInputListeners();
     attachAttorneyInfoHandlers();
+
   } catch (error) {
-    console.error("Error during initialization:", error);
+      console.error("Error during initialization:", error);
   }
 
-  // await loadMode();
-  // await displayClientInfo();
-  // await displayCases();
-});
+    // await loadMode();
+    // await displayClientInfo();
+    // await displayCases();
+  });
+
 
 //Starts the Content Script to add a Case
 jQuery("#evaluate_case_button").click(function () {
@@ -677,6 +676,74 @@ function generateWarrantHistoryTable(warrantEntries) {
         </tbody>
       </table>
     </div>
+  `;
+}
+
+function generateWarrantDetailsSection() {
+  return `
+      <div id="warrant_details_section" style="display: none;" class="mt-3">
+          <h5>Warrant Details</h5>
+          <div class="card">
+              <div class="card-body">
+                  <!-- Consultation Details -->
+                  <div class="mb-3">
+                      <h6>Consultation Information</h6>
+                      <div class="row g-2">
+                          <div class="col-md-4">
+                              <input type="date" class="form-control" id="consultation_date_input" 
+                                     placeholder="Consultation Date">
+                          </div>
+                          <div class="col-md-4">
+                              <input type="text" class="form-control" id="consultation_town_input" 
+                                     placeholder="Consultation Town">
+                          </div>
+                          <div class="col-md-4">
+                              <div class="form-check mt-2">
+                                  <input class="form-check-input" type="checkbox" id="consulted_at_event_input">
+                                  <label class="form-check-label" for="consulted_at_event_input">
+                                      Consulted at Event
+                                  </label>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Non-appearance Details -->
+                  <div class="mb-3">
+                      <h6>Non-appearance Information</h6>
+                      <div class="row g-2">
+                          <div class="col-md-12">
+                              <input type="date" class="form-control" id="non_appearance_date_input" 
+                                     placeholder="Non-appearance Date">
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Warrant Details -->
+                  <div class="mb-3">
+                      <h6>Warrant Information</h6>
+                      <div class="row g-2">
+                          <div class="col-md-6">
+                              <input type="date" class="form-control" id="warrant_issue_date_input" 
+                                     placeholder="Warrant Issue Date">
+                          </div>
+                          <div class="col-md-6">
+                              <div class="input-group">
+                                  <span class="input-group-text">$</span>
+                                  <input type="number" class="form-control" id="warrant_amount_input" 
+                                         placeholder="Warrant Amount">
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="btn-group">
+                      <button type="button" class="btn btn-primary" id="save_warrant_details">Save</button>
+                      <button type="button" class="btn btn-secondary" id="cancel_warrant_details">Cancel</button>
+                  </div>
+              </div>
+          </div>
+      </div>
   `;
 }
 
@@ -837,94 +904,106 @@ async function displayCaseDetails(caseData) {
   });
 
   /////////////////////// Populate additional factors if they exist ///////////////////////
-  if (caseData.additionalFactors && Object.keys(caseData.additionalFactors).length > 0) {
-    // Create a copy of additionalFactors and process warrant status
+  if (
+    caseData.additionalFactors &&
+    Object.keys(caseData.additionalFactors).length > 0
+  ) {
+    // Create a copy of caseData.additionalFactors
     let additionalFactorsProcessed = { ...caseData.additionalFactors };
-    let warrantTableHtml = "";
-    
-    // Process warrant status if it exists
-    if (additionalFactorsProcessed?.warrantDetails) {
-        if (additionalFactorsProcessed.warrantDetails.warrantEntries) {
-            warrantTableHtml = generateWarrantHistoryTable(
-                additionalFactorsProcessed.warrantDetails.warrantEntries
-            );
-        }
-        additionalFactorsProcessed.warrantDetails = 
-            additionalFactorsProcessed.warrantDetails.explanation;
+    // Handle "Deferred Acceptance" additional factor value (really only indicates if deferred
+    // acceptance is in docket, not if deferred acceptance is actually the disposition)
+    if (additionalFactorsProcessed.deferredAcceptance === false) {
+      additionalFactorsProcessed.deferredAcceptance =
+        "Not in docket (check disposition and sentencing)";
     }
 
-    // Build complete HTML content
-    let additionalFactorsHtml = '<h4 class="mb-3">Additional Factors:</h4>';
-    
-    // Add factors card if there are factors to display
+    // Replace "Warrant Status" with its explanation property and generate warrant history table
+    // Recommend testing with 1CPC-22-0001376
+    let warrantTableHtml = "";
+    if (additionalFactorsProcessed?.warrantDetails) {
+      if (additionalFactorsProcessed.warrantDetails.warrantEntries) {
+          warrantTableHtml = generateWarrantHistoryTable(
+              additionalFactorsProcessed.warrantDetails.warrantEntries
+          );
+      }
+      additionalFactorsProcessed.warrantDetails =
+          additionalFactorsProcessed.warrantDetails.explanation;
+      }
+
+      // Clear the container first
+      $("#additional-factors-container").empty();
+      
+      // Add the header
+      $("#additional-factors-container").append(`
+          <h4 class="mb-3">Additional Factors:</h4>
+      `);
+
     const factorsHtml = generatePropertiesHtml(additionalFactorsProcessed);
     if (factorsHtml) {
-        additionalFactorsHtml += `
-            <div class="card mb-3">
-                <div class="card-body">
-                    ${factorsHtml}
-                </div>
-            </div>
-        `;
+      $("#additional-factors-container").html(`
+        <h4 class="mb-3">Additional Factors:</h4>
+        <div class="card mb-3">
+          <div class="card-body">
+            ${factorsHtml}
+          </div>
+        </div>
+      `);
     }
 
-    // Add warrant history table if it exists
+    // Add warrant history table after factors card
     if (warrantTableHtml) {
-        additionalFactorsHtml += warrantTableHtml;
+        $("#additional-factors-container").append(warrantTableHtml);
     }
-
-    // Set complete HTML content at once
-    $("#additional-factors-container").html(additionalFactorsHtml);
+    
+    // Add warrant details section after warrant history
+    if (currentMode === 'warrant') {
+        $("#additional-factors-container").append(generateWarrantDetailsSection());
+    }
   }
 
   // Set overall expungeability
   /////////////////////// Set overall status ///////////////////////
   const overallStatusContainer = $("#overall-expungeability");
-  if (currentMode === "expungement") {
-    overallStatusContainer.text(caseData.Expungeable);
-    overallStatusContainer.addClass(
-      getExpungeabilityClass(caseData.Expungeable)
-    );
+  if (currentMode === 'expungement') {
+      overallStatusContainer.text(caseData.Expungeable);
+      overallStatusContainer.addClass(getExpungeabilityClass(caseData.Expungeable));
   } else {
-    // Create badge styling to match expungeability badge style
-    const warrantStatus = caseData?.warrantStatus;
-    let statusText = "No Warrant Information";
-    let badgeClass = "badge "; // Base badge class
-
-    if (warrantStatus) {
-      if (warrantStatus.hasOutstandingWarrant) {
-        statusText = "Outstanding Warrant";
-        badgeClass += "bg-danger text-white";
-      } else if (warrantStatus.warrantEntries?.length > 0) {
-        statusText = "No Outstanding Warrant";
-        badgeClass += "bg-success text-white";
-      } else {
-        badgeClass += "bg-warning text-dark";
+      // Create badge styling to match expungeability badge style
+      const warrantStatus = caseData?.warrantStatus;
+      let statusText = 'No Warrant Information';
+      let badgeClass = 'badge '; // Base badge class
+      
+      if (warrantStatus) {
+          if (warrantStatus.hasOutstandingWarrant) {
+              statusText = 'Outstanding Warrant';
+              badgeClass += 'bg-danger text-white';
+          } else if (warrantStatus.warrantEntries?.length > 0) {
+              statusText = 'No Outstanding Warrant';
+              badgeClass += 'bg-success text-white';
+          } else {
+              badgeClass += 'bg-warning text-dark';
+          }
       }
-    }
 
-    // Replace the content with a badge span
-    overallStatusContainer.html(`
+      // Replace the content with a badge span
+      overallStatusContainer.html(`
           <span class="${badgeClass}" data-bs-toggle="tooltip" 
-                data-bs-placement="top" title="${
-                  warrantStatus?.explanation ||
-                  "Unable to determine warrant status"
-                }">
+                data-bs-placement="top" title="${warrantStatus?.explanation || 'Unable to determine warrant status'}">
               ${statusText}
           </span>
       `);
   }
 
-  /// Initialize warrant UI if in warrant mode - but only AFTER all other DOM manipulation
+  // Initialize warrant functionality if in warrant mode
   if (currentMode === 'warrant') {
-    // Delay initialization slightly to ensure DOM is ready
-    setTimeout(() => initializeWarrantUI(caseData), 0);
+    initializeWarrantUI(caseData);
   }
 
   // Add click event listener to back button
   $("#back-button").on("click", function () {
     displayCases();
   });
+
 }
 ////////////////////////////// WARRANT DETAILS /////////////////////////////
 // State object for warrant details
@@ -935,143 +1014,131 @@ let warrantDetails = {
   nonAppearanceDate: "",
   warrantIssueDate: "",
   warrantAmount: "",
-  caseNumber: "", // Store which case these details belong to
+  caseNumber: ""  // Store which case these details belong to
 };
 
 // Add to displayCaseDetails function after setting up warrant history
 function initWarrantDetails(caseData) {
-  const warrantButton = $("#warrant_details_button");
-
+  const warrantButton = $('#warrant_details_button');
+  
   // Only show button in warrant mode with outstanding warrant
-  if (
-    currentMode === "warrant" &&
-    caseData.warrantStatus?.hasOutstandingWarrant
-  ) {
-    warrantButton.show();
-
-    // Load any existing warrant details for this case
-    loadWarrantDetails(caseData.CaseNumber);
+  if (currentMode === 'warrant' && caseData.warrantStatus?.hasOutstandingWarrant) {
+      warrantButton.show();
+      
+      // Load any existing warrant details for this case
+      loadWarrantDetails(caseData.CaseNumber);
   } else {
-    warrantButton.hide();
+      warrantButton.hide();
   }
 }
 
 // Load warrant details from storage
 async function loadWarrantDetails(caseNumber) {
   return new Promise((resolve) => {
-    chrome.storage.local.get("warrantDetails", function (result) {
-      if (result.warrantDetails && result.warrantDetails[caseNumber]) {
-        warrantDetails = {
-          ...warrantDetails,
-          ...result.warrantDetails[caseNumber],
-        };
-        updateWarrantDetailsForm();
-      }
-      resolve(warrantDetails);
-    });
+      chrome.storage.local.get('warrantDetails', function(result) {
+          if (result.warrantDetails && result.warrantDetails[caseNumber]) {
+              warrantDetails = { ...warrantDetails, ...result.warrantDetails[caseNumber] };
+              updateWarrantDetailsForm();
+          }
+          resolve(warrantDetails);
+      });
   });
 }
 
 // Save warrant details to storage
 async function saveWarrantDetails() {
   return new Promise((resolve) => {
-    chrome.storage.local.get("warrantDetails", function (result) {
-      const allWarrantDetails = result.warrantDetails || {};
-      allWarrantDetails[warrantDetails.caseNumber] = warrantDetails;
-
-      chrome.storage.local.set({ warrantDetails: allWarrantDetails }, () => {
-        console.log("Warrant details saved:", warrantDetails);
-        resolve();
+      chrome.storage.local.get('warrantDetails', function(result) {
+          const allWarrantDetails = result.warrantDetails || {};
+          allWarrantDetails[warrantDetails.caseNumber] = warrantDetails;
+          
+          chrome.storage.local.set({ warrantDetails: allWarrantDetails }, () => {
+              console.log('Warrant details saved:', warrantDetails);
+              resolve();
+          });
       });
-    });
   });
 }
 
 // Update form with current values
 function updateWarrantDetailsForm() {
-  $("#consultation_date_input").val(warrantDetails.consultationDate);
-  $("#consultation_town_input").val(warrantDetails.consultationTown);
-  $("#consulted_at_event_input").prop(
-    "checked",
-    warrantDetails.consultedAtEvent
-  );
-  $("#non_appearance_date_input").val(warrantDetails.nonAppearanceDate);
-  $("#warrant_issue_date_input").val(warrantDetails.warrantIssueDate);
-  $("#warrant_amount_input").val(warrantDetails.warrantAmount);
+  $('#consultation_date_input').val(warrantDetails.consultationDate);
+  $('#consultation_town_input').val(warrantDetails.consultationTown);
+  $('#consulted_at_event_input').prop('checked', warrantDetails.consultedAtEvent);
+  $('#non_appearance_date_input').val(warrantDetails.nonAppearanceDate);
+  $('#warrant_issue_date_input').val(warrantDetails.warrantIssueDate);
+  $('#warrant_amount_input').val(warrantDetails.warrantAmount);
 }
 
 // Get date components for document generation
 function getDateComponents(dateString) {
-  if (!dateString) return { month: "", day: "", year: "" };
-
+  if (!dateString) return { month: '', day: '', year: '' };
+  
   const date = new Date(dateString);
   return {
-    month: (date.getMonth() + 1).toString(), // getMonth() is 0-based
-    day: date.getDate().toString(),
-    year: date.getFullYear().toString(),
+      month: (date.getMonth() + 1).toString(), // getMonth() is 0-based
+      day: date.getDate().toString(),
+      year: date.getFullYear().toString()
   };
 }
 
 // Add warrant details handlers
 function attachWarrantDetailsHandlers() {
   // Show form when clicking the button
-  $("#warrant_details_button").on("click", function () {
-    $("#warrant_details_section").show();
-    $("#warrant_details_section").get(0).scrollIntoView({ behavior: "smooth" });
+  $('#warrant_details_button').on('click', function() {
+      $('#warrant_details_section').show();
   });
 
   // Save button handler
-  $("#save_warrant_details").on("click", async function () {
-    warrantDetails = {
-      ...warrantDetails,
-      consultationDate: $("#consultation_date_input").val(),
-      consultationTown: $("#consultation_town_input").val(),
-      consultedAtEvent: $("#consulted_at_event_input").is(":checked"),
-      nonAppearanceDate: $("#non_appearance_date_input").val(),
-      warrantIssueDate: $("#warrant_issue_date_input").val(),
-      warrantAmount: $("#warrant_amount_input").val(),
-    };
-
-    await saveWarrantDetails();
-    $("#warrant_details_section").hide();
+  $('#save_warrant_details').on('click', async function() {
+      warrantDetails = {
+          ...warrantDetails,
+          consultationDate: $('#consultation_date_input').val(),
+          consultationTown: $('#consultation_town_input').val(),
+          consultedAtEvent: $('#consulted_at_event_input').is(':checked'),
+          nonAppearanceDate: $('#non_appearance_date_input').val(),
+          warrantIssueDate: $('#warrant_issue_date_input').val(),
+          warrantAmount: $('#warrant_amount_input').val()
+      };
+      
+      await saveWarrantDetails();
+      $('#warrant_details_section').hide();
   });
 
   // Cancel button handler
-  $("#cancel_warrant_details").on("click", function () {
-    $("#warrant_details_section").hide();
-    updateWarrantDetailsForm(); // Reset to last saved state
+  $('#cancel_warrant_details').on('click', function() {
+      $('#warrant_details_section').hide();
+      updateWarrantDetailsForm();  // Reset to last saved state
   });
 
   // Add input listeners for immediate state updates
-  $("#consultation_date_input").on("change", function () {
-    warrantDetails.consultationDate = $(this).val();
+  $('#consultation_date_input').on('change', function() {
+      warrantDetails.consultationDate = $(this).val();
   });
-  $("#consultation_town_input").on("input", function () {
-    warrantDetails.consultationTown = $(this).val().trim();
+  $('#consultation_town_input').on('input', function() {
+      warrantDetails.consultationTown = $(this).val().trim();
   });
-  $("#consulted_at_event_input").on("change", function () {
-    warrantDetails.consultedAtEvent = $(this).is(":checked");
+  $('#consulted_at_event_input').on('change', function() {
+      warrantDetails.consultedAtEvent = $(this).is(':checked');
   });
-  $("#non_appearance_date_input").on("change", function () {
-    warrantDetails.nonAppearanceDate = $(this).val();
+  $('#non_appearance_date_input').on('change', function() {
+      warrantDetails.nonAppearanceDate = $(this).val();
   });
-  $("#warrant_issue_date_input").on("change", function () {
-    warrantDetails.warrantIssueDate = $(this).val();
+  $('#warrant_issue_date_input').on('change', function() {
+      warrantDetails.warrantIssueDate = $(this).val();
   });
-  $("#warrant_amount_input").on("input", function () {
-    warrantDetails.warrantAmount = $(this).val().trim();
+  $('#warrant_amount_input').on('input', function() {
+      warrantDetails.warrantAmount = $(this).val().trim();
   });
 }
 
-// Handle warrant details section creation
+// Call this when displaying case details
 function initializeWarrantUI(caseData) {
-  // Only proceed if we're in warrant mode and have an outstanding warrant
-  if (currentMode === 'warrant' && caseData.warrantStatus?.hasOutstandingWarrant) {
-      // Initialize the warrant details functionality
-      attachWarrantDetailsHandlers();
-      initWarrantDetails(caseData);
-  }
+  warrantDetails.caseNumber = caseData.CaseNumber;
+  attachWarrantDetailsHandlers();
+  initWarrantDetails(caseData);
 }
+
 
 /////////////////////////// ATTORNEY INFORMATION ///////////////////////////
 // Attorney information state
@@ -1089,62 +1156,60 @@ let attorneyInfo = {
   attorneyTelephone: "",
   attorneyFax: "",
   attorneyEmail: "",
-  circuitOrdinal: "",
+  circuitOrdinal: ""
 };
 
 // Load attorney info from storage
 async function loadAttorneyInfo() {
   return new Promise((resolve) => {
-    chrome.storage.local.get("attorneyInfo", function (result) {
-      if (result.attorneyInfo) {
-        // Default values for Head Public Defender
-        const defaults = {
-          headPdName: "Jon N. Ikenaga",
-          headPdRegistration: "6284",
-        };
+      chrome.storage.local.get('attorneyInfo', function(result) {
+          if (result.attorneyInfo) {
+              // Default values for Head Public Defender
+              const defaults = {
+                headPdName: "Jon N. Ikenaga",
+                headPdRegistration: "6284"
+              };
 
-        attorneyInfo = {
-          ...attorneyInfo,
-          ...result.attorneyInfo,
-          // Restore defaults if values are empty
-          headPdName: result.attorneyInfo.headPdName || defaults.headPdName,
-          headPdRegistration:
-            result.attorneyInfo.headPdRegistration ||
-            defaults.headPdRegistration,
-        };
-        updateAttorneyDisplay();
-        updateFormFields();
-      }
-      resolve(attorneyInfo);
-    });
+              attorneyInfo = { 
+                ...attorneyInfo, 
+                ...result.attorneyInfo,
+                // Restore defaults if values are empty
+                headPdName: result.attorneyInfo.headPdName || defaults.headPdName,
+                headPdRegistration: result.attorneyInfo.headPdRegistration || defaults.headPdRegistration
+            };
+              updateAttorneyDisplay();
+              updateFormFields();
+          }
+          resolve(attorneyInfo);
+      });
   });
 }
 
 // Save attorney info to storage
 async function saveAttorneyInfo() {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ attorneyInfo }, () => {
-      console.log("Attorney info saved:", attorneyInfo);
-      updateAttorneyDisplay();
-      resolve();
-    });
+      chrome.storage.local.set({ attorneyInfo }, () => {
+          console.log('Attorney info saved:', attorneyInfo);
+          updateAttorneyDisplay();
+          resolve();
+      });
   });
 }
 
 // Update the attorney name display in the header
 function updateAttorneyDisplay() {
-  const displayElement = $("#attorney_info_display");
-  const defaultText = "Set Attorney Information";
-
+  const displayElement = $('#attorney_info_display');
+  const defaultText = 'Set Attorney Information';
+  
   if (attorneyInfo.attorneyName) {
-    displayElement.html(`
+      displayElement.html(`
           <span class="attorney-name">Attorney: ${attorneyInfo.attorneyName}</span>
           <a href="#" class="change-link text-white-50 ms-2">
               <small>[Change]</small>
           </a>
       `);
   } else {
-    displayElement.html(`
+      displayElement.html(`
           <a href="#" class="text-white text-decoration-none">${defaultText}</a>
       `);
   }
@@ -1152,21 +1217,21 @@ function updateAttorneyDisplay() {
 
 // Update form fields with current values
 function updateFormFields() {
-  $("#firm_name_input").val(attorneyInfo.firmName);
-  $("#attorney_name_input").val(attorneyInfo.attorneyName);
-  $("#attorney_registration_input").val(attorneyInfo.attorneyRegistration);
-  $("#head_pd_name_input").val(attorneyInfo.headPdName);
-  $("#head_pd_registration_input").val(attorneyInfo.headPdRegistration);
-  $("#attorney_address_3_input").val(attorneyInfo.attorneyAddress3);
-  $("#attorney_address_4_input").val(attorneyInfo.attorneyAddress4);
-  $("#attorney_telephone_input").val(attorneyInfo.attorneyTelephone);
-  $("#attorney_fax_input").val(attorneyInfo.attorneyFax);
-  $("#attorney_email_input").val(attorneyInfo.attorneyEmail);
-  $("#circuit_ordinal_input").val(attorneyInfo.circuitOrdinal);
-  $("#attorney_type_toggle").prop("checked", attorneyInfo.isPublicDefender);
-  $("#attorney_address_1_input").val(attorneyInfo.attorneyAddress1);
-  $("#attorney_address_2_input").val(attorneyInfo.attorneyAddress2);
-
+  $('#firm_name_input').val(attorneyInfo.firmName);
+  $('#attorney_name_input').val(attorneyInfo.attorneyName);
+  $('#attorney_registration_input').val(attorneyInfo.attorneyRegistration);
+  $('#head_pd_name_input').val(attorneyInfo.headPdName);
+  $('#head_pd_registration_input').val(attorneyInfo.headPdRegistration);
+  $('#attorney_address_3_input').val(attorneyInfo.attorneyAddress3);
+  $('#attorney_address_4_input').val(attorneyInfo.attorneyAddress4);
+  $('#attorney_telephone_input').val(attorneyInfo.attorneyTelephone);
+  $('#attorney_fax_input').val(attorneyInfo.attorneyFax);
+  $('#attorney_email_input').val(attorneyInfo.attorneyEmail);
+  $('#circuit_ordinal_input').val(attorneyInfo.circuitOrdinal);
+  $('#attorney_type_toggle').prop('checked', attorneyInfo.isPublicDefender);
+  $('#attorney_address_1_input').val(attorneyInfo.attorneyAddress1);
+  $('#attorney_address_2_input').val(attorneyInfo.attorneyAddress2);
+  
   // Update field visibility based on attorney type
   updateFieldVisibility();
 }
@@ -1174,82 +1239,78 @@ function updateFormFields() {
 // Add input listeners for attorney form fields
 function addAttorneyInputListeners() {
   const fields = {
-    firm_name_input: "firmName",
-    attorney_name_input: "attorneyName",
-    attorney_registration_input: "attorneyRegistration",
-    head_pd_name_input: "headPdName",
-    head_pd_registration_input: "headPdRegistration",
-    attorney_address_3_input: "attorneyAddress3",
-    attorney_address_4_input: "attorneyAddress4",
-    attorney_telephone_input: "attorneyTelephone",
-    attorney_fax_input: "attorneyFax",
-    attorney_email_input: "attorneyEmail",
+      'firm_name_input': 'firmName',
+      'attorney_name_input': 'attorneyName',
+      'attorney_registration_input': 'attorneyRegistration',
+      'head_pd_name_input': 'headPdName',
+      'head_pd_registration_input': 'headPdRegistration',
+      'attorney_address_3_input': 'attorneyAddress3',
+      'attorney_address_4_input': 'attorneyAddress4',
+      'attorney_telephone_input': 'attorneyTelephone',
+      'attorney_fax_input': 'attorneyFax',
+      'attorney_email_input': 'attorneyEmail',
   };
 
   Object.entries(fields).forEach(([inputId, infoKey]) => {
-    $(`#${inputId}`).on("input", function () {
-      attorneyInfo[infoKey] = $(this).val().trim();
-    });
+      $(`#${inputId}`).on('input', function() {
+          attorneyInfo[infoKey] = $(this).val().trim();
+      });
   });
 
-  $("#circuit_ordinal_input").on("change", function () {
-    attorneyInfo.circuitOrdinal = $(this).val();
+  $('#circuit_ordinal_input').on('change', function() {
+      attorneyInfo.circuitOrdinal = $(this).val();
   });
 
   // Add attorney type toggle listener
-  $("#attorney_type_toggle").on("change", function () {
-    attorneyInfo.isPublicDefender = $(this).is(":checked");
-    updateFieldVisibility();
+  $('#attorney_type_toggle').on('change', function() {
+      attorneyInfo.isPublicDefender = $(this).is(':checked');
+      updateFieldVisibility();
   });
 
   // Add new address fields
-  $("#attorney_address_1_input").on("input", function () {
-    attorneyInfo.attorneyAddress1 = $(this).val().trim();
+  $('#attorney_address_1_input').on('input', function() {
+      attorneyInfo.attorneyAddress1 = $(this).val().trim();
   });
-  $("#attorney_address_2_input").on("input", function () {
-    attorneyInfo.attorneyAddress2 = $(this).val().trim();
+  $('#attorney_address_2_input').on('input', function() {
+      attorneyInfo.attorneyAddress2 = $(this).val().trim();
   });
 }
 
 // Add click handlers for attorney info form
 function attachAttorneyInfoHandlers() {
   // Show form when clicking any part of the attorney info display
-  $(document).on(
-    "click",
-    "#attorney_info_display, #attorney_info_display a",
-    function (e) {
+  $(document).on('click', '#attorney_info_display, #attorney_info_display a', function(e) {
       e.preventDefault();
-      console.log("Attorney info display clicked");
-      $("#attorney_info_container").show();
-    }
-  );
+      console.log('Attorney info display clicked');
+      $('#attorney_info_container').show();
+  });
 
   // Confirm button handler
-  $(document).on("click", "#confirm_attorney_info", async function () {
-    console.log("Confirming attorney info");
-    await saveAttorneyInfo();
-    $("#attorney_info_container").hide();
+  $(document).on('click', '#confirm_attorney_info', async function() {
+      console.log('Confirming attorney info');
+      await saveAttorneyInfo();
+      $('#attorney_info_container').hide();
   });
 
   // Cancel button handler
-  $(document).on("click", "#cancel_attorney_info", function () {
-    console.log("Canceling attorney info edit");
-    $("#attorney_info_container").hide();
-    updateFormFields(); // Reset to last saved state
+  $(document).on('click', '#cancel_attorney_info', function() {
+      console.log('Canceling attorney info edit');
+      $('#attorney_info_container').hide();
+      updateFormFields();  // Reset to last saved state
   });
 
   // Add logging to verify the handler is attached
-  console.log("Attorney info handlers attached");
+  console.log('Attorney info handlers attached');
 }
 
 // Handle attorney info field visibility
 function updateFieldVisibility() {
   if (attorneyInfo.isPublicDefender) {
-    $("#public_defender_fields").show();
-    $("#private_attorney_fields").hide();
+      $('#public_defender_fields').show();
+      $('#private_attorney_fields').hide();
   } else {
-    $("#public_defender_fields").hide();
-    $("#private_attorney_fields").show();
+      $('#public_defender_fields').hide();
+      $('#private_attorney_fields').show();
   }
 }
 
