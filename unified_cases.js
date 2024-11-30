@@ -451,7 +451,7 @@ class ExpungeabilityEvaluator {
     additionalFactors = {}
   ) {
     console.log(`Evaluating charge:`, charge);
-    console.log(`Additional factors: ${JSON.stringify(additionalFactors)}`);
+    //console.log(`Additional factors: ${JSON.stringify(additionalFactors)}`);
 
     // No disposition found (but check docket for dismissal on State's oral motion where implemented)
     const noDispositionFoundResult_Pending = {
@@ -1351,7 +1351,7 @@ async getTypeSpecificFactors() {
 class CPCCaseProcessor extends CaseProcessor {
   async getCharges() {
     const chargesTable = this.getCPCChargesTable();
-    console.log("chargesTable:", chargesTable.html());
+    //console.log("chargesTable:", chargesTable.html());
     const offenses = [];
 
     chargesTable.find("tr:not(:first-child)").each((index, row) => {
@@ -2235,9 +2235,20 @@ class DCCCaseProcessor extends CaseProcessor {
     return charges;
   }
 
-  async getAdditionalFactors() {
-    // Add any DCC-specific factors here if needed
-    return {};
+  // async getAdditionalFactors() {
+  //   // Add any DCC-specific factors here if needed
+  //   return {};
+  // }
+  
+  async getTypeSpecificFactors() {
+    const entries = await this.docketService.getDocketEntries();
+    const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
+    const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
+    
+    return {
+        withPrejudice: dismissalStatus.withPrejudice,
+        deferredAcceptance: deferralStatus.deferredAcceptance
+    };
   }
 
   getAdditionalDetails() {
@@ -2626,7 +2637,7 @@ class CaseProcessorFactory {
     } else if (caseId.includes("DCW")) {
       return new DCWCaseProcessor();
     } else if (caseId.includes("DCC")) {
-      return new DCCaseProcessor();
+      return new DCCCaseProcessor();
     } else if (caseId.includes("DTA")) {
       return new DTACaseProcessor();
     } else if (caseId.includes("DTI")) {

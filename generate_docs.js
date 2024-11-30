@@ -86,6 +86,70 @@ const DocumentGenerator = (function () {
       },
     };
 
+    ////////////////////////// Optional Paragraph Patterns //////////////////////////
+    static OPTIONAL_PARAGRAPH_PATTERNS = {
+      expungement: {
+        alternateAddressLine3: {
+          placeholder: "ξ",
+          pattern: /<w:p w14:paraId="20DEE2BC".*?ξ<\/w:t><\/w:r><\/w:p>/,
+          emptyReplacement: "", // Removing entire paragraph when empty
+        },
+        alternatePhone: {
+          placeholder: "φ",
+          pattern: /<w:p w14:paraId="32400D1D".*?φ<\/w:t><\/w:r><\/w:p>/,
+          emptyReplacement: "",
+        },
+        alternateEmail: {
+          placeholder: "ω",
+          pattern: /<w:p w14:paraId="011CD49E".*?ω<\/w:t><\/w:r><\/w:p>/,
+          emptyReplacement: "",
+        },
+      },
+      warrant: {
+        privateAttorney: {
+          firmName: {
+            placeholder: "φ",
+            pattern: /<w:r.*?φ<\/w:t><\/w:r>/,
+            emptyReplacement: "", // Currently just empty string
+          },
+          attorneyAddress3: {
+            placeholder: "δ",
+            pattern: /<w:p w14:paraId="5BB03E26".*δ<\/w:t><\/w:r><\/w:p>/,
+            emptyReplacement: "",
+          },
+          attorneyAddress4: {
+            placeholder: "ε",
+            pattern: /<w:p w14:paraId="463A85AE".*ε<\/w:t><\/w:r><\/w:p>/,
+            emptyReplacement: "",
+          },
+          attorneyFax: {
+            placeholder: "η",
+            pattern: /<w:p w14:paraId="23E48E27".*η<\/w:t><\/w:r><\/w:p>/,
+            emptyReplacement: "",
+          },
+          attorneyEmail: {
+            placeholder: "θ",
+            pattern: /<w:p w14:paraId="6C48E1FB".*θ<\/w:t><\/w:r><\/w:p>/,
+            emptyReplacement: "",
+          },
+          attorneySignatureLocation: {
+            // Special: alters two adjacent runs; does not remove a paragraph
+            placeholder: "χ",
+            pattern: /<w:r w:rsidR="007A17FE".*?χ.*?<w:t>, /,
+            emptyReplacement: "<w:r><w:t>",
+          },
+        },
+        publicDefender: {
+          attorneySignatureLocation: {
+            // Special: alters two adjacent runs; does not remove a paragraph
+            placeholder: "χ",
+            pattern: /<w:r w:rsidR="001D517E".*?χ.*?>, /,
+            emptyReplacement: '<w:r><w:t xml:space="preserve">',
+          },
+        },
+      },
+    };
+
     ////////////////////////// Load Attorney Info //////////////////////////
     async loadAttorneyInfo() {
       return new Promise((resolve) => {
@@ -283,6 +347,70 @@ const DocumentGenerator = (function () {
       };
     }
 
+    /**
+     * Handles optional paragraphs in document XML based on document type and data
+     * @param {string} content - The XML content of the document
+     * @param {string} templateType - The type of template ('expungement' or 'warrant')
+     * @returns {string} Modified XML content with appropriate replacements
+     */
+    handleOptionalParagraphs(content, templateType) {
+      if (templateType === "expungement") {
+        const patterns =
+          DocumentGenerator.OPTIONAL_PARAGRAPH_PATTERNS.expungement;
+
+        for (const [key, pattern] of Object.entries(patterns)) {
+          const value = this[key]; // These values come from the class instance
+          if (value) {
+            content = content.replace(pattern.placeholder, value);
+          } else {
+            content = content.replace(
+              pattern.pattern,
+              pattern.emptyReplacement
+            );
+          }
+        }
+      } else if (templateType === "warrant") {
+        if (this.attorneyInfo.isPublicDefender) {
+          // Public Defender specific optional paragraphs
+          const patterns =
+            DocumentGenerator.OPTIONAL_PARAGRAPH_PATTERNS.warrant
+              .publicDefender;
+
+          for (const [key, pattern] of Object.entries(patterns)) {
+            const value = this.attorneyInfo[key];
+            if (value) {
+              content = content.replace(pattern.placeholder, value);
+            } else {
+              content = content.replace(
+                pattern.pattern,
+                pattern.emptyReplacement
+              );
+            }
+          }
+          return content;
+        } else {
+          // Private attorney specific optional paragraphs
+          const patterns =
+            DocumentGenerator.OPTIONAL_PARAGRAPH_PATTERNS.warrant
+              .privateAttorney;
+
+          for (const [key, pattern] of Object.entries(patterns)) {
+            const value = this.attorneyInfo[key];
+            if (value) {
+              content = content.replace(pattern.placeholder, value);
+            } else {
+              content = content.replace(
+                pattern.pattern,
+                pattern.emptyReplacement
+              );
+            }
+          }
+        }
+      }
+
+      return content;
+    }
+
     ////////////////////////// Generate Expungement Documents //////////////////////////
     selectWarrantTemplate() {
       const template =
@@ -459,7 +587,10 @@ const DocumentGenerator = (function () {
         .file("word/document.xml")
         .async("string");
 
-      documentXmlContent = this.handleOptionalParagraphs(documentXmlContent);
+      documentXmlContent = this.handleOptionalParagraphs(
+        documentXmlContent,
+        "expungement"
+      );
 
       const placeholderToValue = {
         κ: letterName,
@@ -498,36 +629,36 @@ const DocumentGenerator = (function () {
       return null;
     }
 
-    handleOptionalParagraphs(content) {
-      if (this.alternateAddressLine3) {
-        content = content.replace("ξ", this.alternateAddressLine3);
-      } else {
-        content = content.replace(
-          /<w:p w14:paraId="20DEE2BC".*?ξ<\/w:t><\/w:r><\/w:p>/,
-          ""
-        );
-      }
+    // handleOptionalParagraphs(content) {
+    //   if (this.alternateAddressLine3) {
+    //     content = content.replace("ξ", this.alternateAddressLine3);
+    //   } else {
+    //     content = content.replace(
+    //       /<w:p w14:paraId="20DEE2BC".*?ξ<\/w:t><\/w:r><\/w:p>/,
+    //       ""
+    //     );
+    //   }
 
-      if (this.alternatePhone) {
-        content = content.replace("φ", this.alternatePhone);
-      } else {
-        content = content.replace(
-          /<w:p w14:paraId="32400D1D".*?φ<\/w:t><\/w:r><\/w:p>/,
-          ""
-        );
-      }
+    //   if (this.alternatePhone) {
+    //     content = content.replace("φ", this.alternatePhone);
+    //   } else {
+    //     content = content.replace(
+    //       /<w:p w14:paraId="32400D1D".*?φ<\/w:t><\/w:r><\/w:p>/,
+    //       ""
+    //     );
+    //   }
 
-      if (this.alternateEmail) {
-        content = content.replace("ω", this.alternateEmail);
-      } else {
-        content = content.replace(
-          /<w:p w14:paraId="011CD49E".*?ω<\/w:t><\/w:r><\/w:p>/,
-          ""
-        );
-      }
+    //   if (this.alternateEmail) {
+    //     content = content.replace("ω", this.alternateEmail);
+    //   } else {
+    //     content = content.replace(
+    //       /<w:p w14:paraId="011CD49E".*?ω<\/w:t><\/w:r><\/w:p>/,
+    //       ""
+    //     );
+    //   }
 
-      return content;
-    }
+    //   return content;
+    // }
 
     async generateAndDownloadDOCX(zip, client, caseNumber) {
       try {
@@ -653,6 +784,7 @@ const DocumentGenerator = (function () {
       }
 
       // Combine all data sources into a single object
+      console.log("Attorney Info:", this.attorneyInfo);
       const replacementData = {
         // Attorney Information
         attorneyName: this.attorneyInfo.attorneyName || "",
@@ -710,37 +842,19 @@ const DocumentGenerator = (function () {
       replacementData,
       templateMapping
     ) {
-      // Log initial state for debugging
-      console.log(
-        "Applying warrant replacements with mapping:",
-        templateMapping
+      // First handle optional paragraphs based on attorney type
+      documentXmlContent = this.handleOptionalParagraphs(
+        documentXmlContent,
+        "warrant"
       );
 
-      // Iterate through the template mapping
+      // Then handle all regular replacements using the template mapping
       for (const [placeholder, dataKey] of Object.entries(templateMapping)) {
         const replacementValue = replacementData[dataKey] || "";
-
-        // Create a RegExp for global replacement
         const placeholderRegex = new RegExp(placeholder, "g");
-
-        // Log each replacement for debugging
-        console.log(
-          `Replacing ${placeholder} with "${replacementValue}" for key ${dataKey}`
-        );
-
-        // Perform the replacement
         documentXmlContent = documentXmlContent.replace(
           placeholderRegex,
           replacementValue
-        );
-      }
-
-      // Verify no placeholders remain (debugging)
-      const remainingGreekLetters = documentXmlContent.match(/[α-ωΑ-Ω]/g);
-      if (remainingGreekLetters) {
-        console.warn(
-          "Warning: Unreplaced Greek letters found:",
-          [...new Set(remainingGreekLetters)].join(", ")
         );
       }
 

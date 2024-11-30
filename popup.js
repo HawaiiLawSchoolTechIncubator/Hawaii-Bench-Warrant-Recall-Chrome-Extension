@@ -637,9 +637,27 @@ document.addEventListener("DOMContentLoaded", async function () {
     console.error("Error during initialization:", error);
   }
 
-  // await loadMode();
-  // await displayClientInfo();
-  // await displayCases();
+  // Initial generate button state
+  await updateGenerateButtonState();
+  
+  // Update button state when mode changes
+    chrome.storage.onChanged.addListener(async (changes) => {
+        if (changes.toolMode) {
+            await updateGenerateButtonState();
+        }
+    });
+
+    // Add validation check before generating documents
+    $('#generate_documents_button').on('click', async function(e) {
+        e.preventDefault();
+        const [isValid, message] = await validateGenerateButton();
+        if (isValid) {
+            handleGenerateDocuments();
+        } else {
+            // Optionally show an error message
+            console.log('Cannot generate documents:', message);
+        }
+    });
 });
 
 //Starts the Content Script to add a Case
@@ -655,11 +673,11 @@ jQuery("#overview_button").click(function () {
 });
 
 //Download PDF
-//jQuery("#generate_paperwork_button").click(handleGenerateDocuments);
-jQuery("#generate_paperwork_button").click(function () {
-  console.log("Generate Paperwork button clicked...");
-  handleGenerateDocuments();
-});
+//jQuery("#generate_documents_button").click(handleGenerateDocuments);
+// jQuery("#generate_documents_button").click(function () {
+//   console.log("Generate Paperwork button clicked...");
+//   handleGenerateDocuments();
+// });
 
 //Empties Cases and Client from local Storage
 jQuery("#emptycases").click(function () {
@@ -1056,17 +1074,6 @@ function updateWarrantDetailsForm() {
   $("#warrant_amount_input").val(warrantDetails.warrantAmount);
 }
 
-// Get date components for document generation
-function getDateComponents(dateString) {
-  if (!dateString) return { month: "", day: "", year: "" };
-
-  const date = new Date(dateString);
-  return {
-    month: (date.getMonth() + 1).toString(), // getMonth() is 0-based
-    day: date.getDate().toString(),
-    year: date.getFullYear().toString(),
-  };
-}
 
 // Add warrant details handlers
 function  attachWarrantDetailsHandlers() {
@@ -1083,20 +1090,75 @@ function  attachWarrantDetailsHandlers() {
         .scrollIntoView({ behavior: "smooth" });
     });
 
-  $("#save_warrant_recall_details").on("click", async function () {
-    warrantDetails = {
-      ...warrantDetails,
-      consultationDate: $("#consultation_date_input").val(),
-      consultationTown: $("#consultation_town_input").val(),
-      consultVerbPhrase: $("#consult_verb_phrase_input").val(),
-      nonAppearanceDate: $("#non_appearance_date_input").val(),
-      warrantIssueDate: $("#warrant_issue_date_input").val(),
-      warrantAmount: $("#warrant_amount_input").val(),
-    };
+    $("#save_warrant_recall_details").off('click').on("click", async function () {
+      if (!validateWarrantDetails()) {
+          return; // Don't proceed if validation fails
+      }
 
-    await saveWarrantDetails();
-    $("#warrant_recall_details_section").hide();
+      warrantDetails = {
+          ...warrantDetails,
+          consultationDate: $("#consultation_date_input").val(),
+          consultationTown: $("#consultation_town_input").val(),
+          consultVerbPhrase: $("#consult_verb_phrase_input").val(),
+          nonAppearanceDate: $("#non_appearance_date_input").val(),
+          warrantIssueDate: $("#warrant_issue_date_input").val(),
+          warrantAmount: $("#warrant_amount_input").val(),
+      };
+
+      await saveWarrantDetails();
+      $("#warrant_recall_details_section").hide();
   });
+
+  // Add input event handlers to remove invalid state when user starts typing
+  ['consultation_date_input', 'consult_verb_phrase_input', 
+    'non_appearance_date_input', 'warrant_issue_date_input', 
+    'warrant_amount_input'].forEach(fieldId => {
+       $(`#${fieldId}`).on('input', function() {
+           $(this).removeClass('is-invalid');
+           $(this).next('.invalid-feedback').remove();
+       });
+   });
+
+   // Add special handler for warrant amount to validate on input
+   $("#warrant_amount_input").on('input', function() {
+    $(this).removeClass('is-invalid');
+    $(this).next('.invalid-feedback').remove();
+    
+    const value = $(this).val().trim();
+    if (value) {
+        const numericAmount = parseFloat(value.replace(/[^\d.-]/g, ''));
+        if (isNaN(numericAmount)) {
+            $(this).addClass('is-invalid');
+            $(this).after('<div class="invalid-feedback">Please enter a valid number</div>');
+        } else if (numericAmount < 0) {
+            $(this).addClass('is-invalid');
+            $(this).after('<div class="invalid-feedback">Amount cannot be negative</div>');
+        }
+    }
+});
+
+   // Add date input handlers to revalidate dates when any date changes
+   ['consultation_date_input', 'non_appearance_date_input', 
+    'warrant_issue_date_input'].forEach(dateFieldId => {
+       $(`#${dateFieldId}`).on('change', function() {
+           // Only revalidate if all date fields have values
+           const allDatesHaveValues = ['consultation_date_input', 
+               'non_appearance_date_input', 
+               'warrant_issue_date_input'].every(id => 
+                   $(`#${id}`).val().trim() !== ''
+               );
+           
+           if (allDatesHaveValues) {
+               validateWarrantDetails();
+           } else {
+               // Clear validation states from all date fields
+               ['consultation_date_input', 'non_appearance_date_input', 
+                'warrant_issue_date_input'].forEach(id => {
+                   $(`#${id}`).removeClass('is-invalid').next('.invalid-feedback').remove();
+               });
+           }
+       });
+   });
 
   // Cancel button handler
   $("#cancel_warrant_recall_details").on("click", function () {
@@ -1338,8 +1400,9 @@ function updateAttorneyDisplay() {
   const defaultText = "Set Attorney Information";
 
   if (attorneyInfo.attorneyName) {
+    const titlePrefix = attorneyInfo.isPublicDefender ? "Public Defender: " : "Attorney: ";
     displayElement.html(`
-          <span class="attorney-name">Attorney: ${attorneyInfo.attorneyName}</span>
+          <span class="attorney-name">${titlePrefix}${attorneyInfo.attorneyName}</span>
           <a href="#" class="change-link text-white-50 ms-2">
               <small>[Change]</small>
           </a>
@@ -1359,6 +1422,8 @@ function updateFormFields() {
   $("#attorney_signature_location_input").val(attorneyInfo.attorneySignatureLocation);
   $("#head_pd_name_input").val(attorneyInfo.headPdName);
   $("#head_pd_registration_input").val(attorneyInfo.headPdRegistration);
+  $("#attorney_address_1_input").val(attorneyInfo.attorneyAddress1);
+  $("#attorney_address_2_input").val(attorneyInfo.attorneyAddress2);
   $("#attorney_address_3_input").val(attorneyInfo.attorneyAddress3);
   $("#attorney_address_4_input").val(attorneyInfo.attorneyAddress4);
   $("#attorney_telephone_input").val(attorneyInfo.attorneyTelephone);
@@ -1366,8 +1431,6 @@ function updateFormFields() {
   $("#attorney_email_input").val(attorneyInfo.attorneyEmail);
   //$("#circuit_ordinal_input").val(attorneyInfo.circuitOrdinal); // Not currently used
   $("#attorney_type_toggle").prop("checked", attorneyInfo.isPublicDefender);
-  $("#attorney_address_1_input").val(attorneyInfo.attorneyAddress1);
-  $("#attorney_address_2_input").val(attorneyInfo.attorneyAddress2);
 
   // Update field visibility based on attorney type
   updateFieldVisibility();
@@ -1376,74 +1439,88 @@ function updateFormFields() {
 // Add input listeners for attorney form fields
 function addAttorneyInputListeners() {
   const fields = {
-    firm_name_input: "firmName",
-    attorney_name_input: "attorneyName",
-    attorney_registration_input: "attorneyRegistration",
-    attorney_signature_location_input: "attorneySignatureLocation",
-    head_pd_name_input: "headPdName",
-    head_pd_registration_input: "headPdRegistration",
-    attorney_address_3_input: "attorneyAddress3",
-    attorney_address_4_input: "attorneyAddress4",
-    attorney_telephone_input: "attorneyTelephone",
-    attorney_fax_input: "attorneyFax",
-    attorney_email_input: "attorneyEmail",
+      firm_name_input: "firmName",
+      attorney_name_input: "attorneyName",
+      attorney_registration_input: "attorneyRegistration",
+      attorney_signature_location_input: "attorneySignatureLocation",
+      head_pd_name_input: "headPdName",
+      head_pd_registration_input: "headPdRegistration",
+      attorney_address_1_input: "attorneyAddress1",
+      attorney_address_2_input: "attorneyAddress2",
+      attorney_address_3_input: "attorneyAddress3",
+      attorney_address_4_input: "attorneyAddress4",
+      attorney_telephone_input: "attorneyTelephone",
+      attorney_fax_input: "attorneyFax",
+      attorney_email_input: "attorneyEmail"
   };
 
   Object.entries(fields).forEach(([inputId, infoKey]) => {
-    $(`#${inputId}`).on("input", function () {
-      attorneyInfo[infoKey] = $(this).val().trim();
-    });
+      $(`#${inputId}`).on("input", function() {
+          attorneyInfo[infoKey] = $(this).val().trim();
+          // Remove validation state when user starts typing
+          $(this).removeClass('is-invalid');
+          $(this).next('.invalid-feedback').remove();
+      });
   });
 
-  // $("#circuit_ordinal_input").on("change", function () {
-  //   attorneyInfo.circuitOrdinal = $(this).val();
-  // });
-
-  // Add attorney type toggle listener
-  $("#attorney_type_toggle").on("change", function () {
-    attorneyInfo.isPublicDefender = $(this).is(":checked");
-    updateFieldVisibility();
-  });
-
-  // Add new address fields
-  $("#attorney_address_1_input").on("input", function () {
-    attorneyInfo.attorneyAddress1 = $(this).val().trim();
-  });
-  $("#attorney_address_2_input").on("input", function () {
-    attorneyInfo.attorneyAddress2 = $(this).val().trim();
+  // Attorney type toggle listener
+  $("#attorney_type_toggle").on("change", function() {
+      attorneyInfo.isPublicDefender = $(this).is(":checked");
+      updateFieldVisibility();
   });
 }
 
 // Add click handlers for attorney info form
 function attachAttorneyInfoHandlers() {
-  // Show form when clicking any part of the attorney info display
-  $(document).on(
-    "click",
-    "#attorney_info_display, #attorney_info_display a",
-    function (e) {
-      e.preventDefault();
-      console.log("Attorney info display clicked");
-      $("#attorney_info_container").show();
-    }
-  );
+  // Helper function to reset form to saved values
+  async function resetFormToSavedValues() {
+      await loadAttorneyInfo(); // Reload saved values from storage
+      updateFormFields();       // Update form with saved values
+  }
 
-  // Confirm button handler
-  $(document).on("click", "#confirm_attorney_info", async function () {
-    console.log("Confirming attorney info");
-    await saveAttorneyInfo();
-    $("#attorney_info_container").hide();
+  // Show form when clicking any part of the attorney info display
+  $(document).on("click", "#attorney_info_display, #attorney_info_display a", async function(e) {
+      e.preventDefault();
+      await resetFormToSavedValues(); // Reset to saved values before showing
+      $("#attorney_info_container").show();
+  });
+
+  // Confirm button handler with validation
+  $(document).on("click", "#confirm_attorney_info", async function() {
+      if (!validateAttorneyInfo()) {
+          return; // Don't proceed if validation fails
+      }
+      await saveAttorneyInfo();
+      $("#attorney_info_container").hide();
   });
 
   // Cancel button handler
-  $(document).on("click", "#cancel_attorney_info", function () {
-    console.log("Canceling attorney info edit");
-    $("#attorney_info_container").hide();
-    updateFormFields(); // Reset to last saved state
+  $(document).on("click", "#cancel_attorney_info", async function() {
+      // Clear all validation states
+      $("#attorney_info_container input").removeClass('is-invalid');
+      $("#attorney_info_container .invalid-feedback").remove();
+      $("#attorney_info_container").hide();
+      
+      // Reset to saved values when cancelling
+      await resetFormToSavedValues();
   });
 
-  // Add logging to verify the handler is attached
-  console.log("Attorney info handlers attached");
+  // Add input handlers to remove validation state when user starts typing
+  $("#attorney_info_container input").on('input', function() {
+      $(this).removeClass('is-invalid');
+      $(this).next('.invalid-feedback').remove();
+  });
+
+  // Update required fields when attorney type changes
+  $("#attorney_type_toggle").on("change", async function() {
+      // Clear validation states when switching types
+      $("#attorney_info_container input").removeClass('is-invalid').next('.invalid-feedback').remove();
+      // Update the attorneyInfo object with the new type
+      attorneyInfo.isPublicDefender = $(this).is(":checked");
+      updateFieldVisibility();
+  });
 }
+
 
 // Handle attorney info field visibility
 function updateFieldVisibility() {
@@ -1453,6 +1530,354 @@ function updateFieldVisibility() {
   } else {
     $("#public_defender_fields").hide();
     $("#private_attorney_fields").show();
+  }
+}
+
+// Get date components for document generation
+function getDateComponents(dateString) {
+  if (!dateString) return { month: "", day: "", year: "" };
+
+  const date = new Date(dateString);
+  return {
+    month: (date.getMonth() + 1).toString(), // getMonth() is 0-based
+    day: date.getDate().toString(),
+    year: date.getFullYear().toString(),
+  };
+}
+
+////////////////////////////// FORM VALIDATION /////////////////////////////
+// Validate warrant recall details form entry
+function validateWarrantDetails() {
+  const fields = [
+      {
+          id: 'consultation_date_input',
+          label: 'Consultation Date'
+      },
+      {
+          id: 'consult_verb_phrase_input',
+          label: 'Consultation Details'
+      },
+      {
+          id: 'non_appearance_date_input',
+          label: 'Non-appearance Date'
+      },
+      {
+          id: 'warrant_issue_date_input',
+          label: 'Warrant Issue Date'
+      },
+      {
+          id: 'warrant_amount_input',
+          label: 'Warrant Amount'
+      }
+  ];
+
+  // Clear previous validation states
+  fields.forEach(field => {
+      const input = $(`#${field.id}`);
+      if (!input.hasClass('is-invalid')) {
+          input.addClass('form-control');
+      }
+      // Remove any existing feedback elements
+      input.next('.invalid-feedback').remove();
+      // Remove invalid class
+      input.removeClass('is-invalid');
+  });
+
+  let isValid = true;
+  
+  // Required field validation
+  fields.forEach(field => {
+      const input = $(`#${field.id}`);
+      const value = input.val().trim();
+      
+      if (!value) {
+          isValid = false;
+          input.addClass('is-invalid');
+          input.after(`<div class="invalid-feedback">${field.label} is required</div>`);
+      }
+  });
+
+  // If required fields aren't filled, don't proceed with date validation
+  if (!isValid) return false;
+
+  // Warrant amount validation
+  const warrantAmount = $("#warrant_amount_input").val().trim();
+  // Remove any non-numeric characters except decimal point and negative sign
+  const numericAmount = parseFloat(warrantAmount.replace(/[^\d.-]/g, ''));
+  
+  if (isNaN(numericAmount)) {
+      isValid = false;
+      $("#warrant_amount_input").addClass('is-invalid');
+      $("#warrant_amount_input").after(
+          '<div class="invalid-feedback">Warrant amount must be a valid number</div>'
+      );
+  } else if (numericAmount < 0) {
+      isValid = false;
+      $("#warrant_amount_input").addClass('is-invalid');
+      $("#warrant_amount_input").after(
+          '<div class="invalid-feedback">Warrant amount cannot be negative</div>'
+      );
+  }
+
+  // Date sequence validation
+  const consultationDate = new Date($("#consultation_date_input").val());
+  const nonAppearanceDate = new Date($("#non_appearance_date_input").val());
+  const warrantIssueDate = new Date($("#warrant_issue_date_input").val());
+
+  // Clear any previous date validation states
+  const dateFields = ['consultation_date_input', 'non_appearance_date_input', 'warrant_issue_date_input'];
+  dateFields.forEach(fieldId => {
+      $(`#${fieldId}`).removeClass('is-invalid').next('.invalid-feedback').remove();
+  });
+
+  // Validate non-appearance date is not after warrant issue date
+  if (nonAppearanceDate > warrantIssueDate) {
+      isValid = false;
+      $("#non_appearance_date_input").addClass('is-invalid');
+      $("#non_appearance_date_input").after(
+          '<div class="invalid-feedback">Non-appearance date cannot be after warrant issue date</div>'
+      );
+      $("#warrant_issue_date_input").addClass('is-invalid');
+      $("#warrant_issue_date_input").after(
+          '<div class="invalid-feedback">Warrant issue date cannot be before non-appearance date</div>'
+      );
+  }
+
+  // Validate consultation date is not before other dates
+  if (consultationDate < nonAppearanceDate || consultationDate < warrantIssueDate) {
+      isValid = false;
+      $("#consultation_date_input").addClass('is-invalid');
+      $("#consultation_date_input").after(
+          '<div class="invalid-feedback">Consultation date must be after both non-appearance and warrant issue dates</div>'
+      );
+  }
+
+  return isValid;
+}
+
+// Validate warrant recall details values prior to generating document
+async function validateGenerateWarrantDetails() {
+  const cases = await getCases();
+  console.log('Cases for warrant validation:', cases);
+  
+  let hasValidWarrantCase = false;
+  let warrantDetailsValid = true;
+  let message = '';
+
+  for (const caseData of cases) {
+      if (isWarrantStatusSufficientForPaperwork(
+          caseData?.warrantStatus, 
+          caseData?.OverrideWarrant
+      )) {
+          hasValidWarrantCase = true;
+          const details = await loadWarrantDetails(caseData.CaseNumber);
+          console.log(`Warrant details for case ${caseData.CaseNumber}:`, details);
+          
+          // Check required fields
+          if (!details?.consultationDate || 
+              !details?.consultVerbPhrase || 
+              !details?.nonAppearanceDate || 
+              !details?.warrantIssueDate || 
+              !details?.warrantAmount) {
+              warrantDetailsValid = false;
+              message = 'Complete warrant details are required for all cases';
+              console.log('Missing required warrant details');
+              break;
+          }
+
+          // Validate dates
+          const consultDate = new Date(details.consultationDate);
+          const nonAppearDate = new Date(details.nonAppearanceDate);
+          const warrantDate = new Date(details.warrantIssueDate);
+
+          console.log('Date validation:', {
+              consultDate,
+              nonAppearDate,
+              warrantDate
+          });
+
+          if (nonAppearDate > warrantDate || 
+              consultDate < nonAppearDate || 
+              consultDate < warrantDate) {
+              warrantDetailsValid = false;
+              message = 'Invalid date sequence in warrant details';
+              console.log('Invalid date sequence');
+              break;
+          }
+
+          // Validate warrant amount
+          const amount = parseFloat(details.warrantAmount.replace(/[^\d.-]/g, ''));
+          console.log('Warrant amount validation:', amount);
+          
+          if (isNaN(amount) || amount < 0) {
+              warrantDetailsValid = false;
+              message = 'Invalid warrant amount';
+              break;
+          }
+      }
+  }
+
+  if (!hasValidWarrantCase) {
+      console.log('No valid warrant cases found');
+      return [false, 'No cases with active warrants found'];
+  }
+
+  console.log('Warrant validation result:', {
+      warrantDetailsValid,
+      message
+  });
+
+  return [warrantDetailsValid, message];
+}
+
+
+// Validate attorney info form entry
+function validateAttorneyInfo() {
+  // Clear all previous validation states
+  $("#attorney_info_container input").removeClass('is-invalid').next('.invalid-feedback').remove();
+
+  let isValid = true;
+
+  // Always required fields
+  const alwaysRequired = [
+      { id: 'attorney_name_input', label: 'Attorney Name' },
+      { id: 'attorney_registration_input', label: 'Attorney Registration' }
+  ];
+
+  // Validate always required fields
+  alwaysRequired.forEach(field => {
+      const input = $(`#${field.id}`);
+      if (!input.val().trim()) {
+          isValid = false;
+          input.addClass('is-invalid');
+          input.after(`<div class="invalid-feedback">${field.label} is required</div>`);
+      }
+  });
+
+  // Check if public defender
+  const isPublicDefender = $("#attorney_type_toggle").is(":checked");
+
+  if (isPublicDefender) {
+      // Public defender specific required fields
+      const pdRequired = [
+          { id: 'head_pd_name_input', label: 'Head Public Defender Name' },
+          { id: 'head_pd_registration_input', label: 'Head Public Defender Registration' }
+      ];
+
+      pdRequired.forEach(field => {
+          const input = $(`#${field.id}`);
+          if (!input.val().trim()) {
+              isValid = false;
+              input.addClass('is-invalid');
+              input.after(`<div class="invalid-feedback">${field.label} is required</div>`);
+          }
+      });
+  } else {
+      // Private attorney specific required fields
+      const privateRequired = [
+          { id: 'attorney_address_1_input', label: 'Address Line 1' },
+          { id: 'attorney_address_2_input', label: 'Address Line 2' },
+          { id: 'attorney_telephone_input', label: 'Telephone' }
+      ];
+
+      privateRequired.forEach(field => {
+          const input = $(`#${field.id}`);
+          if (!input.val().trim()) {
+              isValid = false;
+              input.addClass('is-invalid');
+              input.after(`<div class="invalid-feedback">${field.label} is required</div>`);
+          }
+      });
+  }
+
+  return isValid;
+}
+
+// Validate attorney info values prior to generating document
+async function validateGenerateAttorneyInfo() {
+  const info = await new Promise(resolve => {
+      chrome.storage.local.get('attorneyInfo', result => {
+          resolve(result.attorneyInfo || {});
+      });
+  });
+
+  console.log('Attorney info for validation:', info);
+
+  // Required for both types
+  if (!info.attorneyName?.trim() || !info.attorneyRegistration?.trim()) {
+      return [false, 'Attorney name and registration are required'];
+  }
+
+  if (info.isPublicDefender) {
+      if (!info.headPdName?.trim() || !info.headPdRegistration?.trim()) {
+          return [false, 'Head Public Defender information is required'];
+      }
+  } else {
+      if (!info.attorneyAddress1?.trim() || 
+          !info.attorneyAddress2?.trim() || 
+          !info.attorneyTelephone?.trim()) {
+          return [false, 'Private attorney contact information is required'];
+      }
+  }
+
+  return [true, ''];
+}
+
+// Validate generate documents button against attorney info and warrant recall details
+async function validateGenerateButton() {
+  const currentMode = await new Promise(resolve => {
+      chrome.storage.local.get('toolMode', result => {
+          resolve(result.toolMode || 'expungement');
+      });
+  });
+
+  console.log('Current tool mode:', currentMode);
+
+  if (currentMode === 'warrant') {
+      const [attorneyValid, attorneyMessage] = await validateGenerateAttorneyInfo();
+      const [warrantValid, warrantMessage] = await validateGenerateWarrantDetails();
+      
+      console.log('Validation results:', {
+          attorneyValid,
+          attorneyMessage,
+          warrantValid,
+          warrantMessage
+      });
+      
+      const isValid = attorneyValid && warrantValid;
+      const message = !attorneyValid ? attorneyMessage : 
+                     !warrantValid ? warrantMessage : '';
+                     
+      return [isValid, message];
+  }
+  
+  return [true, '']; // Always valid in expungement mode
+}
+
+async function updateGenerateButtonState() {
+  const generateButton = $('#generate_documents_button');
+  const [isValid, message] = await validateGenerateButton();
+  
+  console.log('Generate button validation:', { isValid, message });
+  
+  generateButton.prop('disabled', !isValid);
+  generateButton.removeClass('btn-primary btn-secondary')
+               .addClass(isValid ? 'btn-primary' : 'btn-secondary');
+  
+  // Update tooltip
+  if (generateButton.data('bs-tooltip')) {
+      generateButton.tooltip('dispose');
+  }
+  
+  if (message) {
+      generateButton.attr('data-bs-toggle', 'tooltip')
+                   .attr('data-bs-placement', 'top')
+                   .attr('title', message)
+                   .tooltip();
+  } else {
+      generateButton.removeAttr('data-bs-toggle')
+                   .removeAttr('data-bs-placement')
+                   .removeAttr('title');
   }
 }
 
