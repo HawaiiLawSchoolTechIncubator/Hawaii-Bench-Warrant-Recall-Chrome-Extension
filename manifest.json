@@ -59,7 +59,8 @@
         "dialog.css",
         "case-details.html",
         "generate_docs.js",
-        "data_loaders.js"
+        "data_loaders.js",
+        "default_data.json"
       ],
       "matches": [
         "http://*.courts.state.hi.us/*",

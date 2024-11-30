@@ -241,11 +241,11 @@ function createClientObject(defendantName) {
 
 async function displayClientInfo() {
   await loadAlternateInfo();
-  console.log("Loading alternate info");
+  //console.log("Loading alternate info");
 
-  console.log("displayClientInfo running");
-  console.log("Confirm button exists:", $("#confirm_name_override").length);
-  console.log("Cancel button exists:", $("#cancel_name_override").length);
+  //console.log("displayClientInfo running");
+  //console.log("Confirm button exists:", $("#confirm_name_override").length);
+  //console.log("Cancel button exists:", $("#cancel_name_override").length);
 
   // Populate the input fields with current values
   $("#alternate_first_name_input").val(alternateFirstName);
@@ -534,17 +534,6 @@ function generateOverrideCell(caseData, mode) {
   return "<td></td>"; // Empty override column
 }
 
-// function attachEventListeners(allcases) {
-//   // Case link clicks
-//   $(".case-link").on("click", async function (e) {
-//     e.preventDefault();
-//     // Get fresh case data from storage to ensure we have latest override status
-//     const cases = await getCases();
-//     const caseIndex = $(this).data("case-index");
-//     const caseData = cases[caseIndex];
-//     displayCaseDetails(caseData);
-//   });
-
 function attachEventListeners(allcases) {
   // Case link clicks
   $(".case-link").on("click", function (e) {
@@ -608,7 +597,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   console.log("Found radio buttons:", radioButtons);
 
   radioButtons.forEach((radio) => {
-    console.log("Adding listener to:", radio.id);
+    // console.log("Adding listener to:", radio.id);
     radio.addEventListener("change", async function () {
       console.log("Mode switch clicked:", this.value);
       if (this.checked) {
@@ -666,7 +655,11 @@ jQuery("#overview_button").click(function () {
 });
 
 //Download PDF
-jQuery("#generate_pdf_button").click(handleGenerateDocuments);
+//jQuery("#generate_paperwork_button").click(handleGenerateDocuments);
+jQuery("#generate_paperwork_button").click(function () {
+  console.log("Generate Paperwork button clicked...");
+  handleGenerateDocuments();
+});
 
 //Empties Cases and Client from local Storage
 jQuery("#emptycases").click(function () {
@@ -743,47 +736,6 @@ function generateWarrantHistoryTable(warrantEntries, caseData) {
     </div>
   `;
 }
-
-// function generateWarrantHistoryTable(warrantEntries) {
-//   if (!warrantEntries || warrantEntries.length === 0) return "";
-
-//   return `
-//     <div class="warrant-history mt-3">
-//       <h5>Warrant History</h5>
-//       <table class="table table-sm table-bordered">
-//         <thead>
-//           <tr>
-//             <th>Date</th>
-//             <th>Action</th>
-//             <th>Type</th>
-//             <th>Details</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           ${warrantEntries
-//             .map(
-//               (entry) => `
-//             <tr>
-//               <td>${entry.date}</td>
-//               <td>${entry.warrantAction || "N/A"}</td>
-//               <td>${entry.warrantType || "N/A"}</td>
-//               <td>
-//                 ${entry.docketText}
-//                 ${
-//                   entry.warrantDetails?.bailAmount
-//                     ? `<br>Bail: $${entry.warrantDetails.bailAmount}`
-//                     : ""
-//                 }
-//               </td>
-//             </tr>
-//           `
-//             )
-//             .join("")}
-//         </tbody>
-//       </table>
-//     </div>
-//   `;
-// }
 
 // Display case details
 async function displayCaseDetails(caseData) {
@@ -977,7 +929,8 @@ async function displayCaseDetails(caseData) {
         `;
     }
 
-    // Add warrant history table if it exists
+    /////////////////////// Add warrant history table if it exists ///////////////////////
+    // Recommend testing with 1CPC-22-0001376
     if (warrantTableHtml) {
       additionalFactorsHtml += warrantTableHtml;
     }
@@ -1046,50 +999,6 @@ let warrantDetails = {
   warrantAmount: "",
   caseNumber: "", // Store which case these details belong to
 };
-
-// // Load warrant details from storage or initialize to defaults
-// async function loadWarrantDetails(caseNumber) {
-//   console.log("loadWarrantDetails called with:", caseNumber);
-//   console.log("warrantDetails before loading:", {...warrantDetails});
-  
-//   if (!caseNumber) {
-//       console.warn("No case number provided to loadWarrantDetails");
-//       return;
-//   }
-
-//   return new Promise((resolve) => {
-//       chrome.storage.local.get("warrantDetails", function(result) {
-//           console.log("Raw result from storage:", result);
-//           console.log("result.warrantDetails:", result.warrantDetails);
-//           console.log("result.warrantDetails type:", typeof result.warrantDetails);
-//           if (result.warrantDetails) {
-//               console.log("Case specific warrantDetails:", result.warrantDetails[caseNumber]);
-//           }
-          
-//           if (result.warrantDetails && result.warrantDetails[caseNumber]) {
-//               // Use stored values, they take precedence
-//               warrantDetails = {
-//                   ...result.warrantDetails[caseNumber],
-//                   caseNumber
-//               };
-//               console.log("Using stored warrant details:", warrantDetails);
-//           } else {
-//               // No stored values, initialize with empty values
-//               warrantDetails = {
-//                   consultationDate: "",
-//                   consultationTown: "",
-//                   consultVerbPhrase: "",
-//                   nonAppearanceDate: "",
-//                   warrantIssueDate: "",
-//                   warrantAmount: "",
-//                   caseNumber
-//               };
-//               console.log("No stored details, initialized empty:", warrantDetails);
-//           }
-//           resolve(warrantDetails);
-//       });
-//   });
-// }
 
 async function loadWarrantDetails(caseNumber) {
   console.log("loadWarrantDetails called with:", caseNumber);
@@ -1162,19 +1071,19 @@ function getDateComponents(dateString) {
 // Add warrant details handlers
 function  attachWarrantDetailsHandlers() {
   // Show form when clicking the button
-  $("#warrant_details_button")
+  $("#warrant_recall_details_button")
     .off("click")
     .on("click", async function () {
       // Ensure we have the latest warrant details before showing the form
       await loadWarrantDetails(warrantDetails.caseNumber);
       showWarrantDetailsForm();
-      $("#warrant_details_section").show();
-      $("#warrant_details_section")
+      $("#warrant_recall_details_section").show();
+      $("#warrant_recall_details_section")
         .get(0)
         .scrollIntoView({ behavior: "smooth" });
     });
 
-  $("#save_warrant_details").on("click", async function () {
+  $("#save_warrant_recall_details").on("click", async function () {
     warrantDetails = {
       ...warrantDetails,
       consultationDate: $("#consultation_date_input").val(),
@@ -1186,12 +1095,12 @@ function  attachWarrantDetailsHandlers() {
     };
 
     await saveWarrantDetails();
-    $("#warrant_details_section").hide();
+    $("#warrant_recall_details_section").hide();
   });
 
   // Cancel button handler
-  $("#cancel_warrant_details").on("click", function () {
-    $("#warrant_details_section").hide();
+  $("#cancel_warrant_recall_details").on("click", function () {
+    $("#warrant_recall_details_section").hide();
     showWarrantDetailsForm(); // Reset to last saved state
   });
 
@@ -1234,7 +1143,7 @@ function  attachWarrantDetailsHandlers() {
       const date = $(this).data("date");
 
       // Show the warrant details section if hidden
-      $("#warrant_details_section").show();
+      $("#warrant_recall_details_section").show();
 
       // Set the warrant issue date
       $("#warrant_issue_date_input").val(date);
@@ -1355,55 +1264,12 @@ async function initializeWarrantUI(caseData) {
       
       // Initialize the warrant details functionality
       attachWarrantDetailsHandlers();
-      const warrantButton = $("#warrant_details_button");
+      const warrantButton = $("#warrant_recall_details_button");
       warrantButton.show();
   } else {
-      $("#warrant_details_button").hide();
+      $("#warrant_recall_details_button").hide();
   }
 }
-// async function initializeWarrantUI(caseData) {
-//   console.log("Initializing warrant UI");
-//   console.log("Case data:", caseData);
-
-//   // Only proceed if we're in warrant mode and have a sufficient warrant status
-//   if (currentMode === 'warrant' &&
-//       isWarrantStatusSufficientForPaperwork(caseData.warrantStatus, caseData.OverrideWarrant)) {
-
-//       // Set the case number in warrantDetails
-//       warrantDetails.caseNumber = caseData.CaseNumber;
-
-//       // Load existing warrant details before showing the button
-//       await loadWarrantDetails(caseData.CaseNumber);
-
-//       // Set default values in warrantDetails object
-//       const today = new Date().toISOString().split('T')[0];
-//       warrantDetails.consultationDate = warrantDetails.consultationDate || today;
-
-//       if (caseData.warrantStatus?.latestWarrantDate) {
-//           try {
-//               const [month, day, year] = caseData.warrantStatus.latestWarrantDate.split('/');
-//               const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-//               warrantDetails.warrantIssueDate = warrantDetails.warrantIssueDate || formattedDate;
-//           } catch (error) {
-//               console.error("Error formatting warrant date:", error);
-//           }
-//       }
-
-//       if (caseData.warrantStatus?.latestBailAmount) {
-//           const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
-//           if (!isNaN(numericBail)) {
-//               warrantDetails.warrantAmount = warrantDetails.warrantAmount || numericBail;
-//           }
-//       }
-
-//       // Initialize the warrant details functionality
-//       attachWarrantDetailsHandlers();
-//       const warrantButton = $("#warrant_details_button");
-//       warrantButton.show();
-//   } else {
-//       $("#warrant_details_button").hide();
-//   }
-// }
 
 /////////////////////////// ATTORNEY INFORMATION ///////////////////////////
 // Attorney information state
@@ -1412,8 +1278,9 @@ let attorneyInfo = {
   firmName: "",
   attorneyName: "",
   attorneyRegistration: "",
-  headPdName: "Jon N. Ikenaga",
-  headPdRegistration: "6284",
+  attorneySignatureLocation: "",
+  headPdName: "",
+  headPdRegistration: "",
   attorneyAddress1: "",
   attorneyAddress2: "",
   attorneyAddress3: "",
@@ -1426,25 +1293,27 @@ let attorneyInfo = {
 
 // Load attorney info from storage
 async function loadAttorneyInfo() {
+  // First load the default data
+  const defaultDataUrl = chrome.runtime.getURL('default_data.json');
+  const defaultResponse = await fetch(defaultDataUrl);
+  const defaultData = await defaultResponse.json();
+  
   return new Promise((resolve) => {
     chrome.storage.local.get("attorneyInfo", function (result) {
       if (result.attorneyInfo) {
-        // Default values for Head Public Defender
-        const defaults = {
-          headPdName: "Jon N. Ikenaga",
-          headPdRegistration: "6284",
-        };
-
         attorneyInfo = {
           ...attorneyInfo,
           ...result.attorneyInfo,
           // Restore defaults if values are empty
-          headPdName: result.attorneyInfo.headPdName || defaults.headPdName,
-          headPdRegistration:
-            result.attorneyInfo.headPdRegistration ||
-            defaults.headPdRegistration,
+          headPdName: result.attorneyInfo.headPdName || defaultData.head_public_defender_name,
+          headPdRegistration: result.attorneyInfo.headPdRegistration || defaultData.head_public_defender_registration,
         };
         updateAttorneyDisplay();
+        updateFormFields();
+      } else {
+        // Initialize with defaults if no stored data
+        attorneyInfo.headPdName = defaultData.head_public_defender_name;
+        attorneyInfo.headPdRegistration = defaultData.head_public_defender_registration;
         updateFormFields();
       }
       resolve(attorneyInfo);
@@ -1487,6 +1356,7 @@ function updateFormFields() {
   $("#firm_name_input").val(attorneyInfo.firmName);
   $("#attorney_name_input").val(attorneyInfo.attorneyName);
   $("#attorney_registration_input").val(attorneyInfo.attorneyRegistration);
+  $("#attorney_signature_location_input").val(attorneyInfo.attorneySignatureLocation);
   $("#head_pd_name_input").val(attorneyInfo.headPdName);
   $("#head_pd_registration_input").val(attorneyInfo.headPdRegistration);
   $("#attorney_address_3_input").val(attorneyInfo.attorneyAddress3);
@@ -1494,7 +1364,7 @@ function updateFormFields() {
   $("#attorney_telephone_input").val(attorneyInfo.attorneyTelephone);
   $("#attorney_fax_input").val(attorneyInfo.attorneyFax);
   $("#attorney_email_input").val(attorneyInfo.attorneyEmail);
-  $("#circuit_ordinal_input").val(attorneyInfo.circuitOrdinal);
+  //$("#circuit_ordinal_input").val(attorneyInfo.circuitOrdinal); // Not currently used
   $("#attorney_type_toggle").prop("checked", attorneyInfo.isPublicDefender);
   $("#attorney_address_1_input").val(attorneyInfo.attorneyAddress1);
   $("#attorney_address_2_input").val(attorneyInfo.attorneyAddress2);
@@ -1509,6 +1379,7 @@ function addAttorneyInputListeners() {
     firm_name_input: "firmName",
     attorney_name_input: "attorneyName",
     attorney_registration_input: "attorneyRegistration",
+    attorney_signature_location_input: "attorneySignatureLocation",
     head_pd_name_input: "headPdName",
     head_pd_registration_input: "headPdRegistration",
     attorney_address_3_input: "attorneyAddress3",
@@ -1524,9 +1395,9 @@ function addAttorneyInputListeners() {
     });
   });
 
-  $("#circuit_ordinal_input").on("change", function () {
-    attorneyInfo.circuitOrdinal = $(this).val();
-  });
+  // $("#circuit_ordinal_input").on("change", function () {
+  //   attorneyInfo.circuitOrdinal = $(this).val();
+  // });
 
   // Add attorney type toggle listener
   $("#attorney_type_toggle").on("change", function () {

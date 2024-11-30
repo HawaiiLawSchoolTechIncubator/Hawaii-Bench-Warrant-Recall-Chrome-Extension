@@ -78,10 +78,12 @@ const utils = {
      * @property {string} caseId - The ID of the case.
      * @property {string} caseName - The name of the case.
      * @property {string} courtLocation - The location of the court.
+     * @property {string} courtCircuit - The case's Hawaii circuit.
      * @property {string} filingDate - The filing date of the case.
      * @property {string} defendantName - The name of the defendant.
      */
 
+    // Extract the case ID and the defendant's name
     const caseInfoElement = $(
       ".iceDatTbl,.data:first > tbody > tr > td"
     ).first();
@@ -110,6 +112,7 @@ const utils = {
       console.log(`Defendant Name formatted: '${defendantName}'`);
     }
 
+    // Extract the court location and filing date
     const locationElement = document.querySelector(
       ".iceDatTbl.data > tbody > tr > td:nth-child(2)"
     );
@@ -132,7 +135,18 @@ const utils = {
       : "Filing Date not found";
     console.log("filingDate:", filingDate);
 
-    return { caseId, caseName, courtLocation, filingDate, defendantName };
+    // Extract the court circuit (the first character of the case ID if a digit)
+    // and convert to ordinal number (e.g., "1" to "First")
+    const digitToOrdinal = {
+      "1": "first",
+      "2": "second",
+      "3": "third",
+      "4": "fourth", // Not used in Hawaii
+      "5": "fifth",
+    };
+    const courtCircuit = digitToOrdinal[caseId[0]] || "Unknown";
+
+    return { caseId, caseName, courtLocation, courtCircuit, filingDate, defendantName };
   },
   // Function to create and show the dialog
   showDialog(title, message) {
@@ -1144,6 +1158,7 @@ class CaseProcessor {
       caseType: this.caseType,
       caseId: this.caseInfo.caseId,
       courtLocation: this.caseInfo.courtLocation,
+      courtCircuit: this.caseInfo.courtCircuit,
       filingDate: this.caseInfo.filingDate,
       defendantName: this.caseInfo.defendantName,
       charges: charges,

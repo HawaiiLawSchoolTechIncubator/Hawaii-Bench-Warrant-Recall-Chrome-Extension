@@ -60,6 +60,10 @@
       opacity: 0.9;
     }
 
+    .form_label {
+      font-weight: bold;
+    }
+
     .text-muted {
       color: #acacac !important;
     }
@@ -333,7 +337,7 @@
       <button id="emptycases" class="btn btn-danger">
         Clear All Clients
       </button>
-      <button id="generate_pdf_button" class="btn btn-success">
+      <button id="generate_paperwork_button" class="btn btn-success">
         Generate Documents
       </button>
     </div>
@@ -412,18 +416,20 @@
         </div>
       </div>
       <div id="attorney_info_container" style="display: none;">
-        <!-- Attorney Type Toggle -->
-        <div class="row g-2 mb-3">
-          <div class="col-12">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="attorney_type_toggle">
-              <label class="form-check-label" for="attorney_type_toggle">Public Defender</label>
-            </div>
-          </div>
-        </div>
+        
 
         <div class="row g-2">
-          <!-- Common Fields -->
+          <!-- Initial Common Fields -->
+          <h6 class="form_label">Attorney Information</h6>
+          
+          <div class="row g-2 mb-3"> <!-- Public Defender Toggle -->
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="attorney_type_toggle">
+                <label class="form-check-label" for="attorney_type_toggle">Public Defender</label>
+              </div>
+            </div>
+          </div>
           <div class="col-md-4">
             <input type="text" class="form-control" id="attorney_name_input" placeholder="Attorney Name">
           </div>
@@ -432,6 +438,10 @@
               placeholder="Attorney Registration Number">
           </div>
           <div class="col-md-4">
+            <input type="text" class="form-control" id="attorney_signature_location_input"
+              placeholder="Location for Signature (e.g., Honolulu)">
+          </div>
+          <!-- <div class="col-md-4">
             <select class="form-select" id="circuit_ordinal_input">
               <option value="" selected disabled>Select Circuit</option>
               <option value="First">First</option>
@@ -439,13 +449,14 @@
               <option value="Third">Third</option>
               <option value="Fifth">Fifth</option>
             </select>
-          </div>
+          </div> -->
         </div>
 
         <hr>
 
         <!-- Public Defender Fields -->
         <div id="public_defender_fields" style="display: none;">
+          <h6 class="form_label">Current Head Public Defender</h6>
           <div class="row g-2 mb-2">
             <div class="col-md-6">
               <input type="text" class="form-control" id="head_pd_name_input" placeholder="Head Public Defender Name">
