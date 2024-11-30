@@ -51,7 +51,7 @@ const DocumentGenerator = (function () {
           ω: "consultationDay",
           υ: "consultationYear",
           ψ: "consultVerbPhrase",
-          Ϝ: "circuitOrdinal",
+          Ϝ: "courtCircuit",
         },
       },
       privateAttorney: {
@@ -81,7 +81,7 @@ const DocumentGenerator = (function () {
           ω: "consultationDay",
           υ: "consultationYear",
           ψ: "consultVerbPhrase",
-          Ϝ: "circuitOrdinal",
+          Ϝ: "courtCircuit",
         },
       },
     };
@@ -109,7 +109,7 @@ const DocumentGenerator = (function () {
         privateAttorney: {
           firmName: {
             placeholder: "φ",
-            pattern: /<w:r.*?φ<\/w:t><\/w:r>/,
+            pattern: /<w:r.*?φ<\/w:t>.*?><w:br\/><\/w:r>/,
             emptyReplacement: "", // Currently just empty string
           },
           attorneyAddress3: {
@@ -170,7 +170,7 @@ const DocumentGenerator = (function () {
             attorneyTelephone: "",
             attorneyFax: "",
             attorneyEmail: "",
-            circuitOrdinal: "",
+            courtCircuit: "",
             ...result.attorneyInfo, // Overlay with stored values if they exist
           };
           resolve(this.attorneyInfo);
@@ -809,7 +809,7 @@ const DocumentGenerator = (function () {
         // Case Information
         caseNumber: caseObj.CaseNumber || "",
         defendantNameFull: caseObj.DefendantName || "",
-        circuitOrdinal: caseObj.courtCircuit || "",
+        courtCircuit: caseObj.courtCircuit || "",
 
         // Warrant Information
         warrantIssueMonth: warrantIssueDates.month,
