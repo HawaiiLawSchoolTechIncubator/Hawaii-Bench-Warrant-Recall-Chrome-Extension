@@ -842,6 +842,10 @@ const DocumentGenerator = (function () {
       replacementData,
       templateMapping
     ) {
+      // 
+      console.log("Applying warrant replacements to document XML content");
+      console.log("Replacement data:", replacementData);
+
       // First handle optional paragraphs based on attorney type
       documentXmlContent = this.handleOptionalParagraphs(
         documentXmlContent,
@@ -850,6 +854,8 @@ const DocumentGenerator = (function () {
 
       // Then handle all regular replacements using the template mapping
       for (const [placeholder, dataKey] of Object.entries(templateMapping)) {
+        console.log(`Replacing ${placeholder} with ${dataKey}`);
+
         const replacementValue = replacementData[dataKey] || "";
         const placeholderRegex = new RegExp(placeholder, "g");
         documentXmlContent = documentXmlContent.replace(

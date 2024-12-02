@@ -589,12 +589,23 @@ function updateOverrideStatus(caseNumber, isOverridden) {
   });
 }
 
+// Chrome storage listener to trigger actions when data changes
+chrome.storage.onChanged.addListener(async (changes, namespace) => {
+  // If any of these change, we need to update the generate button state
+  if (changes.warrantDetails || 
+      changes.attorneyInfo || 
+      changes.toolMode) {
+      // Update the generate button state on storing warrant/attorney/tool mode changes
+      await updateGenerateButtonState();
+  }
+});
+
 // When the popup opens
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("DOM loaded");
 
   const radioButtons = document.querySelectorAll('input[name="tool-mode"]');
-  console.log("Found radio buttons:", radioButtons);
+  //console.log("Found radio buttons:", radioButtons);
 
   radioButtons.forEach((radio) => {
     // console.log("Adding listener to:", radio.id);
@@ -636,28 +647,28 @@ document.addEventListener("DOMContentLoaded", async function () {
   } catch (error) {
     console.error("Error during initialization:", error);
   }
-
-  // Initial generate button state
-  await updateGenerateButtonState();
   
-  // Update button state when mode changes
-    chrome.storage.onChanged.addListener(async (changes) => {
-        if (changes.toolMode) {
-            await updateGenerateButtonState();
-        }
-    });
+  // Add validation check before generating documents
+  const generateButton = $('#generate_documents_button');
+  generateButton.on('click', async function(e) {
+      e.preventDefault();
+      const [isValid, message] = await validateGenerateButton();
+      
+      if (isValid) {
+          handleGenerateDocuments();
+      }
+  });
 
-    // Add validation check before generating documents
-    $('#generate_documents_button').on('click', async function(e) {
-        e.preventDefault();
-        const [isValid, message] = await validateGenerateButton();
-        if (isValid) {
-            handleGenerateDocuments();
-        } else {
-            // Optionally show an error message
-            console.log('Cannot generate documents:', message);
-        }
-    });
+    // Storage listener updates validation state
+    chrome.storage.onChanged.addListener(async (changes, namespace) => {
+      if (changes.warrantDetails || 
+          changes.attorneyInfo || 
+          changes.toolMode) {
+          await updateGenerateButtonState();
+      }
+  });
+
+  await updateGenerateButtonState();
 });
 
 //Starts the Content Script to add a Case
@@ -672,12 +683,6 @@ jQuery("#overview_button").click(function () {
   chrome.runtime.sendMessage({ action: "overview_page" });
 });
 
-//Download PDF
-//jQuery("#generate_documents_button").click(handleGenerateDocuments);
-// jQuery("#generate_documents_button").click(function () {
-//   console.log("Generate Paperwork button clicked...");
-//   handleGenerateDocuments();
-// });
 
 //Empties Cases and Client from local Storage
 jQuery("#emptycases").click(function () {
@@ -1831,55 +1836,66 @@ async function validateGenerateButton() {
       });
   });
 
-  console.log('Current tool mode:', currentMode);
-
   if (currentMode === 'warrant') {
+      // Check attorney info first
       const [attorneyValid, attorneyMessage] = await validateGenerateAttorneyInfo();
+      if (!attorneyValid) {
+          return [false, attorneyMessage];
+      }
+
+      // Then check warrant details
       const [warrantValid, warrantMessage] = await validateGenerateWarrantDetails();
-      
-      console.log('Validation results:', {
-          attorneyValid,
-          attorneyMessage,
-          warrantValid,
-          warrantMessage
-      });
-      
-      const isValid = attorneyValid && warrantValid;
-      const message = !attorneyValid ? attorneyMessage : 
-                     !warrantValid ? warrantMessage : '';
-                     
-      return [isValid, message];
+      if (!warrantValid) {
+          return [false, warrantMessage];
+      }
   }
   
-  return [true, '']; // Always valid in expungement mode
+  return [true, '']; // Always valid in expungement mode or if all checks pass
 }
 
 async function updateGenerateButtonState() {
   const generateButton = $('#generate_documents_button');
   const [isValid, message] = await validateGenerateButton();
   
-  console.log('Generate button validation:', { isValid, message });
+  // Store validation state on the button element
+  generateButton.data('isValid', isValid);
+  generateButton.data('validationMessage', message);
   
-  generateButton.prop('disabled', !isValid);
+  // Just update visual appearance, don't disable
   generateButton.removeClass('btn-primary btn-secondary')
                .addClass(isValid ? 'btn-primary' : 'btn-secondary');
   
-  // Update tooltip
-  if (generateButton.data('bs-tooltip')) {
-      generateButton.tooltip('dispose');
+  // Clean up any existing tooltip
+  const existingTooltip = bootstrap.Tooltip.getInstance(generateButton[0]);
+  if (existingTooltip) {
+      existingTooltip.dispose();
   }
   
-  if (message) {
-      generateButton.attr('data-bs-toggle', 'tooltip')
-                   .attr('data-bs-placement', 'top')
-                   .attr('title', message)
-                   .tooltip();
-  } else {
-      generateButton.removeAttr('data-bs-toggle')
-                   .removeAttr('data-bs-placement')
-                   .removeAttr('title');
+  // Set up tooltip if there's a validation message and not valid
+  if (!isValid && message) {
+      const tooltip = new bootstrap.Tooltip(generateButton[0], {
+          title: message,
+          placement: 'top',
+          trigger: 'hover'
+      });
   }
 }
+
+// Add event listeners for button hover
+function initializeGenerateButtonTooltip() {
+  const generateButton = $('#generate_documents_button');
+  
+  generateButton.on('mouseenter', function() {
+      if ($(this).prop('disabled')) {
+          $(this).tooltip('show');
+      }
+  }).on('mouseleave', function() {
+      if ($(this).data('bs-tooltip')) {
+          $(this).tooltip('hide');
+      }
+  });
+}
+
 
 ////////////////////////////////////////////////////////////////////////////
 
