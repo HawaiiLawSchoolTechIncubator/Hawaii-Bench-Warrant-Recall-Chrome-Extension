@@ -152,6 +152,11 @@ const DocumentGenerator = (function () {
 
     ////////////////////////// Load Attorney Info //////////////////////////
     async loadAttorneyInfo() {
+        // First load the default data
+        const defaultDataUrl = chrome.runtime.getURL('default_data.json');
+        const defaultResponse = await fetch(defaultDataUrl);
+        const defaultData = await defaultResponse.json();
+
       return new Promise((resolve) => {
         chrome.storage.local.get("attorneyInfo", (result) => {
           // Set default values for required fields
@@ -161,8 +166,10 @@ const DocumentGenerator = (function () {
             attorneyName: "",
             attorneyRegistration: "",
             attorneySignatureLocation: "",
-            headPdName: "Jon N. Ikenaga",
-            headPdRegistration: "6284",
+            //headPdName: "Jon N. Ikenaga",
+            //headPdRegistration: "6284",
+            headPdName: defaultData.head_public_defender_name,
+            headPdRegistration: defaultData.head_public_defender_registration,
             attorneyAddress1: "",
             attorneyAddress2: "",
             attorneyAddress3: "",
@@ -745,6 +752,12 @@ const DocumentGenerator = (function () {
       // Helper function to split date into components
       const getDateComponents = (dateString) => {
         if (!dateString) return { month: "", day: "", year: "" };
+        
+        // Append timezone if missing to ensure date is parsed as local time and not UTC and then converted
+        if (!dateString.includes('T')) {
+            dateString = dateString + 'T00:00:00';
+        }
+        
         const date = new Date(dateString);
         return {
           month: date.toLocaleString("en-US", { month: "long" }),

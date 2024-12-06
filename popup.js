@@ -1229,36 +1229,47 @@ function  attachWarrantDetailsHandlers() {
 function showWarrantDetailsForm() {
   console.log("Showing warrant details form with warrantDetails:", warrantDetails);
   
-  const today = new Date().toISOString().split('T')[0];
+  // Today's date assumed to be in HST timezone
+  const today = new Date().toISOString('en-US', {timeZone: "HST"}).split('T')[0];
   
   // Set default values if they're not already set
   if (!warrantDetails.consultationDate) {
       warrantDetails.consultationDate = today;
   }
+  if (!warrantDetails?.nonAppearanceDate) {
+      if (warrantDetails?.warrantIssueDate) {
+        console.log("No non-appearance date found but warrant issue date exists.")
+        console.log("Setting non-appearance date to warrant issue date...");
+        warrantDetails.nonAppearanceDate = warrantDetails.warrantIssueDate;
+      }
+    }
 
   // Log each form field and its intended value before setting
   console.log("Setting consultation_date_input to:", warrantDetails.consultationDate || today);
   console.log("Setting warrant_issue_date_input to:", warrantDetails.warrantIssueDate);
   console.log("Setting warrant_amount_input to:", warrantDetails.warrantAmount);
+  console.log("Setting non_appearance_date_input to:", warrantDetails.nonAppearanceDate);
 
   // Get references to form elements and verify they exist
   const consultationDateInput = $("#consultation_date_input");
   const warrantIssueDateInput = $("#warrant_issue_date_input");
   const warrantAmountInput = $("#warrant_amount_input");
+  const nonAppearanceDateInput = $("#non_appearance_date_input");
 
   console.log("Form elements found:", {
       consultationDateInput: consultationDateInput.length > 0,
       warrantIssueDateInput: warrantIssueDateInput.length > 0,
-      warrantAmountInput: warrantAmountInput.length > 0
+      warrantAmountInput: warrantAmountInput.length > 0,
+      nonAppearanceDateInput: nonAppearanceDateInput.length > 0
   });
 
-  // Update all form fields with current values
+  // Update fields with current warrantDetails values or set to empty string
   if (consultationDateInput.length) {
       consultationDateInput.val(warrantDetails.consultationDate || today);
   }
   if (warrantIssueDateInput.length) {
       console.log("Setting warrant issue date...");
-      warrantIssueDateInput.val(warrantDetails.warrantIssueDate || "");
+      warrantIssueDateInput.val(warrantDetails.warrantIssueDate || ""); // Default is issue date determined by DocketService in unified_cases
       console.log("Warrant issue date after setting:", warrantIssueDateInput.val());
   }
   if (warrantAmountInput.length) {
@@ -1266,10 +1277,16 @@ function showWarrantDetailsForm() {
       warrantAmountInput.val(warrantDetails.warrantAmount || "");
       console.log("Warrant amount after setting:", warrantAmountInput.val());
   }
+  if (nonAppearanceDateInput.length) {
+      console.log("Setting non-appearance date...");
+      nonAppearanceDateInput.val(warrantDetails.nonAppearanceDate || "");
+      console.log("Non-appearance date after setting:", nonAppearanceDateInput.val());
+  }
   
   // Also try setting values directly through vanilla JavaScript
   const warrantIssueDateElement = document.getElementById('warrant_issue_date_input');
   const warrantAmountElement = document.getElementById('warrant_amount_input');
+  const nonAppearanceDateElement = document.getElementById('non_appearance_date_input');
   
   if (warrantIssueDateElement) {
       warrantIssueDateElement.value = warrantDetails.warrantIssueDate || "";
@@ -1280,8 +1297,13 @@ function showWarrantDetailsForm() {
       warrantAmountElement.value = warrantDetails.warrantAmount || "";
       console.log("Warrant amount after direct set:", warrantAmountElement.value);
   }
-
-  // Update the rest of the fields
+  
+  if (nonAppearanceDateElement) {
+      nonAppearanceDateElement.value = warrantDetails.nonAppearanceDate || "";
+      console.log("Non-appearance date after direct set:", nonAppearanceDateElement.value);
+  }
+  
+    // Update the rest of the fields
   $("#consultation_town_input").val(warrantDetails.consultationTown || "");
   $("#consult_verb_phrase_input").val(warrantDetails.consultVerbPhrase || "");
   $("#non_appearance_date_input").val(warrantDetails.nonAppearanceDate || "");
@@ -1290,7 +1312,8 @@ function showWarrantDetailsForm() {
   console.log("Form values after setting:", {
       consultationDate: $("#consultation_date_input").val(),
       warrantIssueDate: $("#warrant_issue_date_input").val(),
-      warrantAmount: $("#warrant_amount_input").val()
+      warrantAmount: $("#warrant_amount_input").val(),
+      nonAppearranceDate: $("#non_appearance_date_input").val()
   });
 }
 
@@ -1311,6 +1334,7 @@ async function initializeWarrantUI(caseData) {
           warrantDetails.consultationDate = new Date().toISOString().split('T')[0];
       }
 
+      // Set warrant issue date and amount from case docket warrant details if not otherwise set
       if (!warrantDetails.warrantIssueDate && caseData.warrantStatus?.latestWarrantDate) {
           try {
               const [month, day, year] = caseData.warrantStatus.latestWarrantDate.split('/');
@@ -1319,6 +1343,8 @@ async function initializeWarrantUI(caseData) {
               console.error("Error formatting warrant date:", error);
           }
       }
+
+      // 
 
       if (!warrantDetails.warrantAmount && caseData.warrantStatus?.latestBailAmount) {
           const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
@@ -1690,10 +1716,14 @@ async function validateGenerateWarrantDetails() {
               break;
           }
 
+          console.log('Consultation Date:', details.consultationDate);
+          console.log('Non-Appearance Date:', details.nonAppearanceDate);
+          console.log('Warrant Issue Date:', details.warrantIssueDate);
+
           // Validate dates
-          const consultDate = new Date(details.consultationDate);
-          const nonAppearDate = new Date(details.nonAppearanceDate);
-          const warrantDate = new Date(details.warrantIssueDate);
+          const consultDate = new Date(details.consultationDate + 'T00:00:00');
+          const nonAppearDate = new Date(details.nonAppearanceDate + 'T00:00:00');
+          const warrantDate = new Date(details.warrantIssueDate + 'T00:00:00');
 
           console.log('Date validation:', {
               consultDate,
