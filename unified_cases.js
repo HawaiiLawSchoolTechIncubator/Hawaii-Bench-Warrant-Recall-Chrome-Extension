@@ -1691,6 +1691,49 @@ class DTCCaseProcessor extends CaseProcessor {
     return violations;
   }
 
+  // async getTypeSpecificFactors() {
+  //   const entries = await this.docketService.getDocketEntries();
+  //   const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
+  //   const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
+    
+  //   return {
+  //       withPrejudice: dismissalStatus.withPrejudice,
+  //       deferredAcceptance: deferralStatus.deferredAcceptance
+  //   };
+  // }
+
+  // DEBUGGING
+  async getTypeSpecificFactors() {
+    console.log("DTCCaseProcessor: Starting getTypeSpecificFactors");
+    try {
+      const entries = await this.docketService.getDocketEntries();
+      console.log("DTCCaseProcessor: Got docket entries:", entries);
+      
+      const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
+      console.log("DTCCaseProcessor: Dismissal status:", dismissalStatus);
+      
+      const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
+      console.log("DTCCaseProcessor: Deferral status:", deferralStatus);
+      
+      return {
+        withPrejudice: dismissalStatus.withPrejudice,
+        deferredAcceptance: deferralStatus.deferredAcceptance
+      };
+    } catch (error) {
+      console.error("DTCCaseProcessor: Error in getTypeSpecificFactors:", error);
+      throw error;
+    }
+  }
+
+  // DEBUGGING (this shouldn't even normally be in this subclass)
+  async getAdditionalFactors() {
+    console.log("DTCCaseProcessor: Starting getAdditionalFactors");
+    // Call the parent class's getAdditionalFactors
+    const factors = await super.getAdditionalFactors();
+    console.log("DTCCaseProcessor: Additional factors:", factors);
+    return factors;
+  }
+
   getAdditionalDetails() {
     // Add any case-type specific details here
     return {
@@ -2697,21 +2740,48 @@ class CaseProcessorFactory {
 class DocketService {
   constructor() {
     this.initialized = false;
+    this.columnMap = {}; // Store column index for each type of data
   }
 
   // Core initialization and parsing
+  // async initialize() {
+  //   if (this.initialized) {
+  //     return;
+  //   }
+
+  //   this.docketTable = $("tbody")
+  //     .filter(function () {
+  //       return (
+  //         $(this)
+  //           .find("tr:first th")
+  //           .filter(function () {
+  //             return $(this).text().trim() === "Docket";
+  //           }).length > 0
+  //       );
+  //     })
+  //     .first();
+
+  //   if (!this.docketTable.length) {
+  //     throw new Error("Docket table not found");
+  //   }
+
+  //   this.initialized = true;
+  // }
+
+  // New initialize method mapping columns based on headers
   async initialize() {
     if (this.initialized) {
       return;
     }
 
+    // Find table with a docket column header
     this.docketTable = $("tbody")
       .filter(function () {
         return (
           $(this)
             .find("tr:first th")
             .filter(function () {
-              return $(this).text().trim() === "Docket";
+              return $(this).text().trim().toLowerCase().includes("docket");
             }).length > 0
         );
       })
@@ -2719,6 +2789,32 @@ class DocketService {
 
     if (!this.docketTable.length) {
       throw new Error("Docket table not found");
+    }
+
+    // Map column indices based on headers
+    const headerRow = this.docketTable.find("tr:first th");
+    headerRow.each((index, header) => {
+      const headerText = $(header).text().trim().toLowerCase();
+      if (headerText.includes("docket #") || headerText === "#") {
+        this.columnMap.entryNumber = index;
+      }
+      else if (headerText === "date") {
+        this.columnMap.date = index;
+      }
+      else if (headerText === "docket") {
+        this.columnMap.docketText = index;
+      }
+      else if (headerText === "defendant") {
+        this.columnMap.defendant = index;
+      }
+      else if (headerText === "party") {
+        this.columnMap.party = index;
+      }
+    });
+
+    // Verify we found the essential docket text column
+    if (!('docketText' in this.columnMap)) {
+      throw new Error("Required docket text column not found");
     }
 
     this.initialized = true;
@@ -2743,39 +2839,77 @@ class DocketService {
     return entries;
   }
 
+  // parseDocketRow(cells) {
+  //   if (!cells || cells.length < 5) {
+  //     return null;
+  //   }
+
+  //   const documentLinks = [];
+  //   $(cells[2])
+  //     .find("img")
+  //     .each((index, link) => {
+  //       const onclickAttr = $(link).attr("onclick");
+  //       const docMatch = onclickAttr.match(
+  //         /documentSelection\('([^']+)', '([^']+)'/
+  //       );
+  //       if (docMatch) {
+  //         documentLinks.push({
+  //           documentId: docMatch[1],
+  //           documentType: docMatch[2],
+  //           imageSource: $(link).attr("src"),
+  //         });
+  //       }
+  //     });
+
+  //   // console.log('Debugging docket entry: ', $(cells[0]).text().trim());
+  //   // console.log('Date cell: ', $(cells[1]).text().trim());
+  //   // console.log('Parsed date: ', new Date($(cells[1]).text().trim()));
+
+  //   return {
+  //     entryNumber: $(cells[0]).text().trim(),
+  //     date: new Date($(cells[1]).text().trim()),
+  //     docketText: $(cells[2]).html().replace(/<img[^>]*>/g, ''),
+  //     defendant: $(cells[3]).text().trim(), 
+  //     party: $(cells[4]).text().trim(),
+  //     documentLinks: documentLinks,
+  //   };
+  // }
+
   parseDocketRow(cells) {
-    if (!cells || cells.length < 5) {
-      return null;
-    }
+    if (!cells) return null;
 
     const documentLinks = [];
-    $(cells[2])
-      .find("img")
-      .each((index, link) => {
-        const onclickAttr = $(link).attr("onclick");
-        const docMatch = onclickAttr.match(
-          /documentSelection\('([^']+)', '([^']+)'/
-        );
-        if (docMatch) {
-          documentLinks.push({
-            documentId: docMatch[1],
-            documentType: docMatch[2],
-            imageSource: $(link).attr("src"),
-          });
-        }
-      });
+    if ('docketText' in this.columnMap) {
+      $(cells[this.columnMap.docketText])
+        .find("img")
+        .each((index, link) => {
+          const onclickAttr = $(link).attr("onclick");
+          const docMatch = onclickAttr.match(
+            /documentSelection\('([^']+)', '([^']+)'/
+          );
+          if (docMatch) {
+            documentLinks.push({
+              documentId: docMatch[1],
+              documentType: docMatch[2],
+              imageSource: $(link).attr("src"),
+            });
+          }
+        });
+    }
 
-    // console.log('Debugging docket entry: ', $(cells[0]).text().trim());
-    // console.log('Date cell: ', $(cells[1]).text().trim());
-    // console.log('Parsed date: ', new Date($(cells[1]).text().trim()));
-
+    // Build entry object with nulls for missing columns
     return {
-      entryNumber: $(cells[0]).text().trim(),
-      date: new Date($(cells[1]).text().trim()),
-      docketText: $(cells[2]).html().replace(/<img[^>]*>/g, ''),
-      defendant: $(cells[3]).text().trim(), 
-      party: $(cells[4]).text().trim(),
-      documentLinks: documentLinks,
+      entryNumber: 'entryNumber' in this.columnMap ? 
+        $(cells[this.columnMap.entryNumber]).text().trim() : null,
+      date: 'date' in this.columnMap ? 
+        new Date($(cells[this.columnMap.date]).text().trim()) : null,
+      docketText: 'docketText' in this.columnMap ? 
+        $(cells[this.columnMap.docketText]).html().replace(/<img[^>]*>/g, '') : null,
+      defendant: 'defendant' in this.columnMap ? 
+        $(cells[this.columnMap.defendant]).text().trim() : null,
+      party: 'party' in this.columnMap ? 
+        $(cells[this.columnMap.party]).text().trim() : null,
+      documentLinks: documentLinks
     };
   }
 
@@ -2783,9 +2917,9 @@ class DocketService {
   // Warrant analysis patterns
   static TYPE_PATTERNS = {
     arrest: {
-        pattern: /bench warrant|bw issued|arrest warrant|warrant of arrest|WOA/i,
-        type: 'arrest'
-    },
+        pattern: /bench warrant|bw issued|arrest warrant|warrant of arrest|WOA|return of service/i,
+        type: 'arrest'                              // Provisionally including "return of service"
+    },                                              // ...hoping this is only for bench warrants...
     penal: {
         pattern: /penal summons/i,
         type: 'penal summons'
@@ -2794,11 +2928,11 @@ class DocketService {
 
   static ACTION_PATTERNS = {
     execution: {
-      pattern: /executed|execution|exec /i,
-      action: 'execution'
+      pattern: /executed|execution|exec |return of service/i, // Provisionally including "return of service"
+      action: 'execution'                                     // as "execution" often not explicitly stated
   },
     issue: {
-        pattern: /issued|ordered|granted/i,
+        pattern: /issued|ordered/i,
         action: 'issue'
     },
     recall: {
@@ -2812,6 +2946,14 @@ class DocketService {
     set_bail: {
         pattern: /bail set|bail amount/i,
         action: 'bail set'
+    },
+    request_warrant: {
+      pattern: /request bench warrant/i,
+      action: 'request'
+    },
+    non_appearance: {
+      pattern: /defendant not present|failed to appear|failure to appear/i,
+      action: 'non-appearance'
     }
   };
 
@@ -2844,6 +2986,7 @@ class DocketService {
             break;
         }
     }
+    ////// Actions that are not mutually exclusive
     // Set action to "bail set" if bail amount is found (or append "bail set"
     // to existing action if it's already set)
     if (analysis.bailAmount) {
@@ -2851,6 +2994,14 @@ class DocketService {
         analysis.action = 'bail set';
       } else if (analysis.action !== 'bail set') {
         analysis.action += '; bail set';
+      }
+    }
+    // Set/append action to "non-appearance" if it's found
+    if (DocketService.ACTION_PATTERNS.non_appearance.pattern.test(text)) {
+      if (!analysis.action) {
+        analysis.action = 'non-appearance';
+      } else if (!analysis.action.includes('non-appearance')) {
+        analysis.action += '; non-appearance';
       }
     }
 
@@ -2869,6 +3020,7 @@ class DocketService {
       latestWarrantDate: null,
       latestRecallDate: null,
       latestBailAmount: null,
+      latestNonAppearanceDate: null,
       explanation: ""
   };
 
@@ -2906,9 +3058,10 @@ class DocketService {
     results.warrantEntries.sort((a, b) => b.date - a.date);
 
     // Set latest dates based on actions
-    const latestWarrant = results.warrantEntries.find(entry => entry.warrantAction === 'issue');
-    const latestRecall = results.warrantEntries.find(entry => entry.warrantAction === 'recall');
-    const latestBailAmount = results.warrantEntries.find(entry => entry.warrantAction === 'bail set');
+    const latestWarrant = results.warrantEntries.find(entry => entry.warrantAction?.includes('issue'));
+    const latestRecall = results.warrantEntries.find(entry => entry.warrantAction?.includes('recall'));
+    const latestBailAmount = results.warrantEntries.find(entry => entry.warrantAction?.includes('bail set'));
+    const latestNonAppearance = results.warrantEntries.find(entry => entry.warrantAction?.includes('non-appearance'));
     
 
     if (latestWarrant) {
@@ -2919,6 +3072,9 @@ class DocketService {
     }
     if (latestBailAmount) {
         results.latestBailAmount = latestBailAmount.warrantBailAmount;
+    }
+    if (latestNonAppearance) {
+      results.latestNonAppearanceDate = latestNonAppearance.date;
     }
   }
 

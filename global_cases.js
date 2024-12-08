@@ -80,6 +80,10 @@ function saveToChromeLocalStorage(caseid, case_assessment, court_location, filin
         if (caseDetails?.warrantStatus?.latestRecallDate instanceof Date) {
             caseDetails.warrantStatus.latestRecallDate = caseDetails.warrantStatus.latestRecallDate.toLocaleDateString();
         }
+
+        if (caseDetails?.warrantStatus?.latestNonAppearanceDate instanceof Date) {
+            caseDetails.warrantStatus.latestNonAppearanceDate = caseDetails.warrantStatus.latestNonAppearanceDate.toLocaleDateString();
+        }
         
         // Define the new case object   
         var newCase = {

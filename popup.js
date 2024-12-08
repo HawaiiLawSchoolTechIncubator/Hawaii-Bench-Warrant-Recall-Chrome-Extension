@@ -1334,7 +1334,7 @@ async function initializeWarrantUI(caseData) {
           warrantDetails.consultationDate = new Date().toISOString().split('T')[0];
       }
 
-      // Set warrant issue date and amount from case docket warrant details if not otherwise set
+      // Set warrant issue date from case docket warrant details if not otherwise set
       if (!warrantDetails.warrantIssueDate && caseData.warrantStatus?.latestWarrantDate) {
           try {
               const [month, day, year] = caseData.warrantStatus.latestWarrantDate.split('/');
@@ -1344,12 +1344,21 @@ async function initializeWarrantUI(caseData) {
           }
       }
 
-      // 
-
+      // Set warrant amount from case docket warrant details if not otherwise set
       if (!warrantDetails.warrantAmount && caseData.warrantStatus?.latestBailAmount) {
           const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
           if (!isNaN(numericBail)) {
               warrantDetails.warrantAmount = numericBail;
+          }
+      }
+
+      // Set non-appearance date from case docket warrant details if not otherwise set
+      if (!warrantDetails.nonAppearanceDate && caseData.warrantStatus?.latestNonAppearanceDate) {
+          try {
+              const [month, day, year] = caseData.warrantStatus.latestNonAppearanceDate.split('/');
+              warrantDetails.nonAppearanceDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          } catch (error) {
+              console.error(`Error formatting non-appearance date ${caseData.warrantStatus.latestNonAppearanceDate}:`, error);
           }
       }
 
