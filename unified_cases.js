@@ -442,6 +442,7 @@ class ExpungeabilityEvaluator {
     const result = this.DISPOSITION_RULES[key]({}, {});
     return result.status === "Expungeable";
   });
+
   ///////////////////////////////// END OF DYNAMIC LISTS /////////////////////////////////
 
   static isChargeExpungeable(
@@ -503,6 +504,13 @@ class ExpungeabilityEvaluator {
     let dismissalAfterDeferral = false;
     let dismissalDate = null;
 
+    // DEBUG: list static lists of dispositions
+    // console.log('STATIC LISTS OF DISPOSITIONS:');
+    // console.log('Adverse final dispositions:', this.ADVERSE_FINAL_DISPOSITIONS);
+    // console.log('Deferred dispositions:', this.DEFERRED_DISPOSITIONS);
+    // console.log('Expungeable dispositions:', this.EXPUNGEABLE_DISPOSITIONS);
+
+
     // Handle all dispositions for each charge by evaluating them in chronological order
     for (let i = 0; i < charge.dispositions.length; i++) {
       const disposition = this.safeString(charge.dispositions[i]);
@@ -520,8 +528,12 @@ class ExpungeabilityEvaluator {
           additionalFactors
         );
 
-        // Handle innocence
-        if (this.safeIncludes(disposition, "Not Guilty")) {
+        console.log(`Dispositon: '${disposition}' matched rule: '${ruleKey}'`);
+        console.log(`Result:`, result);
+
+        // Handle innocence/definitely expungeable
+        // if (this.safeIncludes(disposition, "Not Guilty")) {
+        if (this.EXPUNGEABLE_DISPOSITIONS.some(disp => this.safeIncludes(disposition, disp))) {
           return {
             ...result,
             disposition,
