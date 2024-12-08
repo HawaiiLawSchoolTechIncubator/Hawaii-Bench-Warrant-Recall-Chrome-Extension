@@ -3,7 +3,7 @@ let alternateMiddleName = "";
 let alternateLastName = "";
 let alternateSex = "";
 
-let currentMode = "expungement"; // Default mode (can be 'expungement' or 'warrant')
+let currentMode = "expungement"; // Default mode (can be 'expungement' or 'warrant') 
 
 // Function to load mode from storage
 function loadMode() {
