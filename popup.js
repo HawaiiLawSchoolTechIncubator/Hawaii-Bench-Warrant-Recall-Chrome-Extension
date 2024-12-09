@@ -832,11 +832,17 @@ async function displayCaseDetails(caseData) {
 
   // Helper function to format property values
   const formatValue = (key, value) => {
+    if (key === "withPrejudice" && value === false) {
+      return "Not found in docket: check disposition";
+    }
+
     if (typeof value === "boolean") {
       return value ? "Yes" : "No";
     }
     return value;
   };
+
+  // Deal with 
 
   // Helper function to merge/modify charge properties for display
   const processChargePropertiesForDisplay = (charges) => {

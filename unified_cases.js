@@ -905,6 +905,9 @@ class ExpungeabilityEvaluator {
     } else if (normalizedSeverity == "§707-733.6 felony") {
       statuteOfLimitations = 999 * 365 * 24 * 60 * 60 * 1000; // 999 years in milliseconds (i.e., no statute of limitations)
       severityDescription = "§707-733.6 Felony";
+    } else if (normalizedSeverity == "violation") {
+      statuteOfLimitations = 1 * 365 * 24 * 60 * 60 * 1000; // 1 year in milliseconds
+      severityDescription = "Violation";
     } else {
       console.log(
         `Returning unknown statute of limitations for severity: ${normalizedSeverity}`
@@ -1876,7 +1879,6 @@ class DCWCaseProcessor extends CaseProcessor {
   }
 
   async getTypeSpecificFactors() {
-    console.log("DCWCaseProcessor: Starting getTypeSpecificFactors");
     const entries = await this.docketService.getDocketEntries();
     const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
     const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
@@ -2146,12 +2148,23 @@ class FFCCaseProcessor extends CaseProcessor {
     });
   }
 
-  async getAdditionalFactors() {
-    const docket = await this.getPCDocket();
-    const withPrejudice = this.checkNolleProsequi(docket);
-    //console.log(`docket: ${JSON.stringify(docket)}`);
-    const deferredAcceptance = this.checkdeferredAcceptance(docket);
-    return { withPrejudice, deferredAcceptance };
+  // async getAdditionalFactors() {
+  //   const docket = await this.getPCDocket();
+  //   const withPrejudice = this.checkNolleProsequi(docket);
+  //   //console.log(`docket: ${JSON.stringify(docket)}`);
+  //   const deferredAcceptance = this.checkdeferredAcceptance(docket);
+  //   return { withPrejudice, deferredAcceptance };
+  // }
+
+  async getTypeSpecificFactors() {
+    const entries = await this.docketService.getDocketEntries();
+    const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
+    const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
+    
+    return {
+        withPrejudice: dismissalStatus.withPrejudice,
+        deferredAcceptance: deferralStatus.deferredAcceptance
+    };
   }
 
   getAdditionalDetails() {
@@ -2409,16 +2422,27 @@ class DTACaseProcessor extends CaseProcessor {
     return $element && $element.text() ? $element.text().trim() : "";
   }
 
-  async getAdditionalFactors() {
-    // Add any case-type specific details here
-    const docket = await this.getDTADocket();
-    // Temporary code to return docket for inspection
-    //return { docket };\
-    const dismissedOnOralMotionData = this.checkDismissedOnOralMotion(docket)
-    const dismissedOnOralMotion = dismissedOnOralMotionData.dismissalFound;
-    const dismissalDate = dismissedOnOralMotionData.dismissalDate;
-    return { dismissedOnOralMotion, dismissalDate };
-    //return {};
+  // async getAdditionalFactors() {
+  //   // Add any case-type specific details here
+  //   const docket = await this.getDTADocket();
+  //   // Temporary code to return docket for inspection
+  //   //return { docket };\
+  //   const dismissedOnOralMotionData = this.checkDismissedOnOralMotion(docket)
+  //   const dismissedOnOralMotion = dismissedOnOralMotionData.dismissalFound;
+  //   const dismissalDate = dismissedOnOralMotionData.dismissalDate;
+  //   return { dismissedOnOralMotion, dismissalDate };
+  //   //return {};
+  // }
+
+  async getTypeSpecificFactors() {
+    const entries = await this.docketService.getDocketEntries();
+    const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
+    const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
+    
+    return {
+        withPrejudice: dismissalStatus.withPrejudice,
+        deferredAcceptance: deferralStatus.deferredAcceptance
+    };
   }
 
   getAdditionalDetails() {
@@ -2852,6 +2876,7 @@ class DocketService {
         entries.push(entry);
       }
     });
+    console.log('Parsed docket entries: ', entries);
     return entries;
   }
 
