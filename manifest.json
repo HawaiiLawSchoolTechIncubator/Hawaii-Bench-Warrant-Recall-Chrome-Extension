@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
 
-  "name": "eCourt Kokua Hawaii Expungement",
-  "description": "The extension that helps attorneys expunge criminal records in Hawaii.",
+  "name": "eCourt Kokua Multi-Tool",
+  "description": "The extension that helps attorneys expunge criminal records and recall bench warrants in Hawaii.",
   "version": "1.6",
   "author": "Matthew Stubenberg and Benjamin Leider - University of Hawaii William S. Richardson School of Law",
   "action": {
@@ -15,7 +15,7 @@
       "256": "img/expungement_eraser_icon256.png"
     },
     "default_popup": "index.html",
-    "default_title": "Kokua Expungement Tool"
+    "default_title": "Kokua Multi-Tool"
   },
   "icons": {
     "16": "img/Eraser16.png",
