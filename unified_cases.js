@@ -1,7 +1,7 @@
-console.log("unified_cases.js loaded");
-console.log("jQuery version:", $.fn.jquery);
-console.log("Bootstrap loaded:", typeof bootstrap !== "undefined");
-console.log("Bootstrap version:", bootstrap?.Tooltip?.VERSION);
+// console.log("unified_cases.js loaded");
+// console.log("jQuery version:", $.fn.jquery);
+// console.log("Bootstrap loaded:", typeof bootstrap !== "undefined");
+// console.log("Bootstrap version:", bootstrap?.Tooltip?.VERSION);
 
 // Utility functions
 const utils = {
@@ -92,7 +92,7 @@ const utils = {
     const caseName = caseInfo.slice(27, caseInfo.indexOf("Type:"));
 
     let defendantName = null;
-    console.log(`caseInfo: '${caseInfo}'`);
+    // console.log(`caseInfo: '${caseInfo}'`);
     let match = caseInfo.match(
       /Case ID:\s+(.*?)\s+-\s+State (of Hawaii )?vs?\.?\s+(.*)/i
     );
@@ -104,12 +104,12 @@ const utils = {
     } else {
       console.log("Defendant Name not found");
     }
-    console.log(`Defendant Name as found: '${defendantName}'`);
+    // console.log(`Defendant Name as found: '${defendantName}'`);
     if (defendantName) {
       defendantName = defendantName.split(" -NON JURY-")[0];
       defendantName = defendantName.split(" -JURY-")[0];
       defendantName = utils.formatName(defendantName);
-      console.log(`Defendant Name formatted: '${defendantName}'`);
+      // console.log(`Defendant Name formatted: '${defendantName}'`);
     }
 
     // Extract the court location and filing date
@@ -117,23 +117,23 @@ const utils = {
       ".iceDatTbl.data > tbody > tr > td:nth-child(2)"
     );
     if (!locationElement) {
-      console.log("locationElement not found");
+      // console.log("locationElement not found");
       return;
     }
-    console.log("locationElement:", locationElement);
+    // console.log("locationElement:", locationElement);
 
     const locationText = locationElement.innerHTML;
     const locationMatch = locationText.match(/<b>Location: <\/b>([^<]*)/);
     const courtLocation = locationMatch
       ? locationMatch[1].trim()
       : "Location not found";
-    console.log("courtLocation:", courtLocation);
+    // console.log("courtLocation:", courtLocation);
 
     const filingDateMatch = locationText.match(/<b>Filing Date: <\/b>([^<]*)/);
     const filingDate = filingDateMatch
       ? filingDateMatch[1].trim()
       : "Filing Date not found";
-    console.log("filingDate:", filingDate);
+    // console.log("filingDate:", filingDate);
 
     // Extract the court circuit (the first character of the case ID if a digit)
     // and convert to ordinal number (e.g., "1" to "First")
@@ -157,7 +157,7 @@ const utils = {
      * @param {string} message - The message to be displayed in the dialog.
      * @returns {void}
      */
-    console.log("showDialog function called with:", { title, message });
+    // console.log("showDialog function called with:", { title, message });
 
     // Create dialog elements
     const dialog = document.createElement("div");
@@ -245,6 +245,10 @@ const utils = {
       severity === "fc"
     ) {
       normalizedSeverity = "Felony C";
+    } else if (
+      severity === "vl"
+    ) {
+      normalizedSeverity = "violation";
     } else if (caseType) {
       if (caseType == "DTI") {
         normalizedSeverity = "violation";
@@ -728,7 +732,7 @@ class ExpungeabilityEvaluator {
           result.deferralPeriodExpiryDate = deferralResult.expiryDate;
         }
       }
-      console.log('ExpungeAfterDeferral result:', result);
+      // console.log('ExpungeAfterDeferral result:', result);
       return result;
     } else {
       let result = {
@@ -738,7 +742,7 @@ class ExpungeabilityEvaluator {
         disposition: currentStatus.disposition,
         dispositionDate: currentStatus.dispositionDate,
       };
-      console.log('ExpungeAfterDeferral result:', result);
+      // console.log('ExpungeAfterDeferral result:', result);
       return result
     }
   }
@@ -1641,9 +1645,9 @@ class CPCCaseProcessor extends CaseProcessor {
       }
     });
 
-    console.log(
-      `Updated UI for ${chargeIndex} charges out of ${charges.length}`
-    );
+    // console.log(
+    //  `Updated UI for ${chargeIndex} charges out of ${charges.length}`
+    //);
 
     // Initialize tooltips
     this.initTooltips();
@@ -1871,10 +1875,22 @@ class DCWCaseProcessor extends CaseProcessor {
     return charges;
   }
 
-  async getAdditionalFactors() {
-    // Add any DCW-specific factors here if needed
-    return {};
+  async getTypeSpecificFactors() {
+    console.log("DCWCaseProcessor: Starting getTypeSpecificFactors");
+    const entries = await this.docketService.getDocketEntries();
+    const dismissalStatus = await this.docketService.checkDismissalWithPrejudice(entries);
+    const deferralStatus = await this.docketService.checkDeferredAcceptance(entries);
+    
+    return {
+        withPrejudice: dismissalStatus.withPrejudice,
+        deferredAcceptance: deferralStatus.deferredAcceptance
+    };
   }
+
+  // async getAdditionalFactors() {
+  //   // Add any DCW-specific factors here if needed
+  //   return {};
+  // }
 
   getAdditionalDetails() {
     // Add any DCW-specific details here
@@ -3080,6 +3096,7 @@ class DocketService {
 
   // Helper method to determine final warrant status
   determineWarrantStatus(results) {
+    console.log('Warrant entries:', results.warrantEntries);
     if (results.warrantEntries.length === 0) {
         results.explanation = "No warrant entries found in docket.";
         return;
@@ -3091,7 +3108,7 @@ class DocketService {
     );
 
     // Find the most recent warrant issuance
-    const latestWarrant = results.warrantEntries.find(entry => entry.warrantAction === 'issue');
+    const latestWarrant = results.warrantEntries.find(entry => entry.warrantAction?.includes('issue'));
     
     if (!latestWarrant) {
         // No warrant issuance found, but check if there are execution/recall entries
