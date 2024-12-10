@@ -59,7 +59,7 @@ function loadAlternateInfo() {
   });
 }
 // FINAL DETERMINATION OF BENCH WARRANT STATUS TO DECIDE WHETHER TO GENERATE BENCH WARRANT PAPERWORK
-function isWarrantStatusSufficientForPaperwork(warrantStatus, override) {
+function isWarrantStatusSufficientForPaperwork(warrantStatus, override, caseType) {
   console.log("Warrant status:", warrantStatus);
   console.log("Override:", override);
   return warrantStatus?.hasOutstandingWarrant || override;
@@ -519,6 +519,11 @@ function generateOverrideCell(caseData, mode) {
     const isAlreadySufficient = isWarrantStatusSufficientForPaperwork(
       caseData?.warrantStatus
     );
+    // const isAlreadySufficient = isWarrantStatusSufficientForPaperwork({
+    //   warrantStatus: caseData?.warrantStatus,
+    //   caseType: caseData?.caseType
+    // })
+
     return `<td style="text-align: center; vertical-align: middle;">
           <input type="checkbox" class="override-checkbox" 
           data-case-number="${caseData["CaseNumber"]}" 
@@ -589,13 +594,21 @@ function updateOverrideStatus(caseNumber, isOverridden) {
   });
 }
 
-// Chrome storage listener to trigger actions when data changes
+// // Chrome storage listener to trigger actions when data changes
+// chrome.storage.onChanged.addListener(async (changes, namespace) => {
+//   // If any of these change, we need to update the generate button state
+//   if (changes.warrantDetails || 
+//       changes.attorneyInfo || 
+//       changes.toolMode) {
+//       // Update the generate button state on storing warrant/attorney/tool mode changes
+//       await updateGenerateButtonState();
+//   }
+// });
+
+// Storage listener updates validation state
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
-  // If any of these change, we need to update the generate button state
-  if (changes.warrantDetails || 
-      changes.attorneyInfo || 
-      changes.toolMode) {
-      // Update the generate button state on storing warrant/attorney/tool mode changes
+  // Check if any relevant data has changed
+  if (changes.cases || changes.attorneyInfo || changes.toolMode || changes.warrantDetails) {
       await updateGenerateButtonState();
   }
 });
@@ -659,14 +672,22 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
   });
 
-    // Storage listener updates validation state
-    chrome.storage.onChanged.addListener(async (changes, namespace) => {
-      if (changes.warrantDetails || 
-          changes.attorneyInfo || 
-          changes.toolMode) {
-          await updateGenerateButtonState();
-      }
+  // Storage listener updates validation state
+chrome.storage.onChanged.addListener(async (changes, namespace) => {
+  // Check if any relevant data has changed
+  if (changes.cases || changes.attorneyInfo || changes.toolMode || changes.warrantDetails) {
+      await updateGenerateButtonState();
+    }
   });
+
+  //   // Storage listener updates validation state
+  //   chrome.storage.onChanged.addListener(async (changes, namespace) => {
+  //     if (changes.warrantDetails || 
+  //         changes.attorneyInfo || 
+  //         changes.toolMode) {
+  //         await updateGenerateButtonState();
+  //     }
+  // });
 
   await updateGenerateButtonState();
 });
@@ -706,7 +727,8 @@ function generateWarrantHistoryTable(warrantEntries, caseData) {
     currentMode === "warrant" &&
     isWarrantStatusSufficientForPaperwork(
       caseData?.warrantStatus,
-      caseData?.OverrideWarrant
+      caseData?.OverrideWarrant,
+      caseData?.caseType
     );
 
   return `
@@ -1210,7 +1232,8 @@ function  attachWarrantDetailsHandlers() {
       currentMode === "warrant" &&
       isWarrantStatusSufficientForPaperwork(
         caseData?.warrantStatus,
-        caseData?.OverrideWarrant
+        caseData?.OverrideWarrant,
+        caseData?.caseType
       )
     ) {
       const date = $(this).data("date");
@@ -1402,7 +1425,7 @@ let attorneyInfo = {
 // Load attorney info from storage
 async function loadAttorneyInfo() {
   // First load the default data
-  const defaultDataUrl = chrome.runtime.getURL('default_data.json');
+  const defaultDataUrl = chrome.runtime.getURL('settings.json');
   const defaultResponse = await fetch(defaultDataUrl);
   const defaultData = await defaultResponse.json();
   

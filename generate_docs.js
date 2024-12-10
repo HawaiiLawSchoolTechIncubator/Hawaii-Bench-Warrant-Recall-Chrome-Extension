@@ -20,7 +20,7 @@ const DocumentGenerator = (function () {
 
     async initialize() {
       // Load default head PD data
-      const defaultDataUrl = chrome.runtime.getURL("default_data.json");
+      const defaultDataUrl = chrome.runtime.getURL("settings.json");
       const defaultResponse = await fetch(defaultDataUrl);
       this.headPdDefaults = await defaultResponse.json();
 
@@ -153,7 +153,7 @@ const DocumentGenerator = (function () {
     ////////////////////////// Load Attorney Info //////////////////////////
     async loadAttorneyInfo() {
         // First load the default data
-        const defaultDataUrl = chrome.runtime.getURL('default_data.json');
+        const defaultDataUrl = chrome.runtime.getURL('settings.json');
         const defaultResponse = await fetch(defaultDataUrl);
         const defaultData = await defaultResponse.json();
 

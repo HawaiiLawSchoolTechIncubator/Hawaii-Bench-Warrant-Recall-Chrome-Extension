@@ -60,7 +60,7 @@
         "case-details.html",
         "generate_docs.js",
         "data_loaders.js",
-        "default_data.json"
+        "settings.json"
       ],
       "matches": [
         "http://*.courts.state.hi.us/*",
