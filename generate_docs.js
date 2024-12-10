@@ -309,20 +309,28 @@ const DocumentGenerator = (function () {
       return clientCases;
     }
 
-    normalizeDefendantName(name) {
+    normalizeDefendantName(name, format = "last, first middle") {
+      let lastName, firstName, middleName;
+      let returnName = "";
       // Use alternate names if any exist
       if (
         this.alternateInfo.firstName ||
         this.alternateInfo.middleName ||
         this.alternateInfo.lastName
       ) {
-        return `${this.alternateInfo.lastName}, ${this.alternateInfo.firstName} ${this.alternateInfo.middleName}`.trim();
+        firstName = this.alternateInfo.firstName;
+        middleName = this.alternateInfo.middleName;
+        lastName = this.alternateInfo.lastName;
+        // if (format === "first middle last") {
+        //   return `${this.alternateInfo.firstName} ${this.alternateInfo.middleName} ${this.alternateInfo.lastName}`.trim();
+        // } else if (format === "last, first middle") {
+        //   return `${this.alternateInfo.lastName}, ${this.alternateInfo.firstName} ${this.alternateInfo.middleName}`.trim();
+        // }
       }
 
       // Original name normalization logic
       const nameParts = name.trim().split(/\s+/);
-      let lastName, firstName, middleName;
-
+      
       if (nameParts[0].endsWith(",")) {
         lastName = nameParts[0].slice(0, -1);
         firstName = nameParts[1] || "";
@@ -336,8 +344,27 @@ const DocumentGenerator = (function () {
         firstName = "";
         middleName = "";
       }
-
-      return `${lastName}, ${firstName} ${middleName}`.trim();
+      if (format === "last, first middle") {
+        returnName = `${lastName}, ${firstName} ${middleName}`.trim();
+      } else if (format === "first, middle, last") {
+        returnName = `${firstName}, ${middleName}, ${lastName}`.trim();
+      } else if (format === "first middle last") {
+        returnName = `${firstName} ${middleName} ${lastName}`.trim();
+      } else if (format === "first last") {
+        returnName = `${firstName} ${lastName}`.trim();
+      } else if (format === "last") {
+        returnName = `${lastName}`.trim();
+      } else if (format === "first") {
+        returnName = `${firstName}`.trim();
+      } else if (format === "middle") {
+        returnName = `${middleName}`.trim();
+      } else {
+        returnName = name;
+      }
+      returnName = returnName.replace(/\s,/g, '');
+      returnName = returnName.replace(/\s{2,}/g, ' ');
+      return returnName;
+      //return `${lastName}, ${firstName} ${middleName}`.trim();
     }
 
     createClientObject(normalizedName) {
@@ -345,12 +372,15 @@ const DocumentGenerator = (function () {
       const [firstName, ...middleParts] = (firstMiddle || "").split(" ");
       const middleName = middleParts.join(" ");
 
+      let letterName = `${firstName} ${middleName} ${lastName}`.trim();
+      letterName = letterName.replace(/\s{2,}/g, ' ');
+
       return {
         "Last Name": lastName,
         "First Name": firstName,
         "Middle Name": middleName,
         "PDF Name": normalizedName,
-        "Letter Name": `${firstName} ${middleName} ${lastName}`.trim(),
+        "Letter Name": letterName,
       };
     }
 
@@ -821,7 +851,8 @@ const DocumentGenerator = (function () {
 
         // Case Information
         caseNumber: caseObj.CaseNumber || "",
-        defendantNameFull: caseObj.DefendantName || "",
+        //defendantNameFull: caseObj.DefendantName || "",
+        defendantNameFull: this.normalizeDefendantName(caseObj.DefendantName, "first middle last") || "",
         courtCircuit: caseObj.courtCircuit || "",
 
         // Warrant Information
@@ -911,9 +942,9 @@ const DocumentGenerator = (function () {
     }
 
     generateWarrantFilename(caseObj) {
-      const safeName = (caseObj.DefendantName || "unknown_defendant")
-        .replace(/[^a-zA-Z0-9]/g, "_")
-        .toLowerCase();
+      const safeName = (this.normalizeDefendantName(caseObj.DefendantName, "last") || "unknown_defendant")
+        .replace(/\.[a-zA-Z]/g, "").replace(/[^a-zA-Z0-9, ]/g, "_")
+        //.toLowerCase();
 
       return `${safeName}_warrant_${caseObj.CaseNumber}.docx`;
     }
