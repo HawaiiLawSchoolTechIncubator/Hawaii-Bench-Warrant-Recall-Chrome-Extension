@@ -321,29 +321,25 @@ const DocumentGenerator = (function () {
         firstName = this.alternateInfo.firstName;
         middleName = this.alternateInfo.middleName;
         lastName = this.alternateInfo.lastName;
-        // if (format === "first middle last") {
-        //   return `${this.alternateInfo.firstName} ${this.alternateInfo.middleName} ${this.alternateInfo.lastName}`.trim();
-        // } else if (format === "last, first middle") {
-        //   return `${this.alternateInfo.lastName}, ${this.alternateInfo.firstName} ${this.alternateInfo.middleName}`.trim();
-        // }
+      } else {
+        // Original name analysis
+        const nameParts = name.trim().split(/\s+/);
+        
+        if (nameParts[0].endsWith(",")) {
+          lastName = nameParts[0].slice(0, -1);
+          firstName = nameParts[1] || "";
+          middleName = nameParts.slice(2).join(" ");
+        } else if (nameParts.length > 1) {
+          lastName = nameParts[nameParts.length - 1];
+          firstName = nameParts[0];
+          middleName = nameParts.slice(1, -1).join(" ");
+        } else {
+          lastName = name.trim();
+          firstName = "";
+          middleName = "";
+        }
       }
 
-      // Original name normalization logic
-      const nameParts = name.trim().split(/\s+/);
-      
-      if (nameParts[0].endsWith(",")) {
-        lastName = nameParts[0].slice(0, -1);
-        firstName = nameParts[1] || "";
-        middleName = nameParts.slice(2).join(" ");
-      } else if (nameParts.length > 1) {
-        lastName = nameParts[nameParts.length - 1];
-        firstName = nameParts[0];
-        middleName = nameParts.slice(1, -1).join(" ");
-      } else {
-        lastName = name.trim();
-        firstName = "";
-        middleName = "";
-      }
       if (format === "last, first middle") {
         returnName = `${lastName}, ${firstName} ${middleName}`.trim();
       } else if (format === "first, middle, last") {
