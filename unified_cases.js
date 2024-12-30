@@ -532,7 +532,7 @@ class ExpungeabilityEvaluator {
           additionalFactors
         );
 
-        console.log(`Dispositon: '${disposition}' matched rule: '${ruleKey}'`);
+        console.log(`Disposition: '${disposition}' matched rule: '${ruleKey}'`);
         console.log(`Result:`, result);
 
         // Handle innocence/definitely expungeable

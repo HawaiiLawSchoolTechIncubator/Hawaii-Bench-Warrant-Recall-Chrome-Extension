@@ -669,8 +669,32 @@ document.addEventListener("DOMContentLoaded", async function () {
       
       if (isValid) {
           handleGenerateDocuments();
+      } else {
+          // Force show the alert even if it's already displayed
+          const alertContainer = $('#validation-alert-container');
+          alertContainer.empty();
+          
+          const alert = $(`
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <strong>Cannot Generate Documents:</strong> ${message}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          `);
+          
+          alertContainer.append(alert);
+          alert[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          alert.css('animation', 'pulse 2s');
       }
   });
+  // const generateButton = $('#generate_documents_button');
+  // generateButton.on('click', async function(e) {
+  //     e.preventDefault();
+  //     const [isValid, message] = await validateGenerateButton();
+      
+  //     if (isValid) {
+  //         handleGenerateDocuments();
+  //     }
+  // });
 
   // Storage listener updates validation state
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
@@ -1053,7 +1077,6 @@ let warrantDetails = {
 
 async function loadWarrantDetails(caseNumber) {
   console.log("loadWarrantDetails called with:", caseNumber);
-  console.log("warrantDetails before loading:", {...warrantDetails});
   
   if (!caseNumber) {
       console.warn("No case number provided to loadWarrantDetails");
@@ -1084,9 +1107,11 @@ async function loadWarrantDetails(caseNumber) {
 
 // Save warrant details to storage
 async function saveWarrantDetails() {
+  console.log("Saving warrant details with consultationDate:", warrantDetails.consultationDate);
   return new Promise((resolve) => {
     chrome.storage.local.get("warrantDetails", function (result) {
       const allWarrantDetails = result.warrantDetails || {};
+      console.log("Existing warrant details in storage:", allWarrantDetails);
       allWarrantDetails[warrantDetails.caseNumber] = warrantDetails;
 
       chrome.storage.local.set({ warrantDetails: allWarrantDetails }, () => {
@@ -1257,14 +1282,38 @@ function  attachWarrantDetailsHandlers() {
 // Show warrant details form with current values
 function showWarrantDetailsForm() {
   console.log("Showing warrant details form with warrantDetails:", warrantDetails);
+  // Let the browser create today's date in the local timezone (which we know is HST)
+  const today = new Date();
+  // Format it directly to YYYY-MM-DD
+  const todayFormatted = today.getFullYear() + '-' + 
+                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(today.getDate()).padStart(2, '0');
+                        // Today's date assumed to be in HST timezone
+
+  // Create date with explicit HST offset (-10 hours)
+  //const now = new Date(Date.now() - (10 * 60 * 60 * 1000));
+  //const today = now.toISOString().split('T')[0];
+  // const now = new Date();
+  // console.log("Current date object:", now);
   
-  // Today's date assumed to be in HST timezone
-  const today = new Date().toISOString('en-US', {timeZone: "HST"}).split('T')[0];
+  // const hstDate = now.toLocaleDateString('en-US', {
+  //   timeZone: 'Pacific/Honolulu',
+  //   year: 'numeric',
+  //   month: '2-digit', 
+  //   day: '2-digit'
+  // });
+  // console.log("HST formatted date:", hstDate);
   
+  // const today = hstDate.split('/').reverse().join('-');
+  // console.log("Final formatted date:", today);
+
+
   // Set default values if they're not already set
   if (!warrantDetails.consultationDate) {
-      warrantDetails.consultationDate = today;
+    warrantDetails.consultationDate = todayFormatted;
+    document.getElementById('consultation_date_input').value = todayFormatted;
   }
+
   if (!warrantDetails?.nonAppearanceDate) {
       if (warrantDetails?.warrantIssueDate) {
         console.log("No non-appearance date found but warrant issue date exists.")
@@ -1358,10 +1407,11 @@ async function initializeWarrantUI(caseData) {
       // First load any existing stored values
       await loadWarrantDetails(caseData.CaseNumber);
       
-      // Then set defaults only for empty values
-      if (!warrantDetails.consultationDate) {
-          warrantDetails.consultationDate = new Date().toISOString().split('T')[0];
-      }
+      // // Then set defaults only for empty values
+      // NO: this gets the timezone wrong and is already hnandled in showWarrantDetailsForm
+      // if (!warrantDetails.consultationDate) {
+      //     warrantDetails.consultationDate = new Date().toISOString().split('T')[0];
+      // }
 
       // Set warrant issue date from case docket warrant details if not otherwise set
       if (!warrantDetails.warrantIssueDate && caseData.warrantStatus?.latestWarrantDate) {
@@ -1469,17 +1519,20 @@ function updateAttorneyDisplay() {
   const defaultText = "Set Attorney Information";
 
   if (attorneyInfo.attorneyName) {
-    const titlePrefix = attorneyInfo.isPublicDefender ? "Public Defender: " : "Attorney: ";
+    // When attorney name is set, explicitly add text-decoration-none
     displayElement.html(`
-          <span class="attorney-name">${titlePrefix}${attorneyInfo.attorneyName}</span>
-          <a href="#" class="change-link text-white-50 ms-2">
-              <small>[Change]</small>
-          </a>
-      `);
+      <span class="attorney-name">${attorneyInfo.isPublicDefender ? "Public Defender: " : "Attorney: "}${attorneyInfo.attorneyName}</span>
+      <a href="#" class="change-link text-white-50 ms-2">
+        <small>[Change]</small>
+      </a>
+    `);
+    displayElement.addClass('text-decoration-none');
   } else {
+    // When no attorney name is set, ensure text-decoration-none is removed
     displayElement.html(`
-          <a href="#" class="text-white text-decoration-none">${defaultText}</a>
-      `);
+      <a href="#" class="text-white">${defaultText}</a>
+    `);
+    displayElement.removeClass('text-decoration-none');
   }
 }
 
@@ -1749,7 +1802,7 @@ async function validateGenerateWarrantDetails() {
               !details?.warrantIssueDate || 
               !details?.warrantAmount) {
               warrantDetailsValid = false;
-              message = 'Complete warrant details are required for all cases';
+              message = 'Complete recall details must be entered for each case';
               console.log('Missing required warrant details');
               break;
           }
@@ -1923,31 +1976,77 @@ async function validateGenerateButton() {
 
 async function updateGenerateButtonState() {
   const generateButton = $('#generate_documents_button');
+  const alertContainer = $('#validation-alert-container');
   const [isValid, message] = await validateGenerateButton();
   
-  // Store validation state on the button element
-  generateButton.data('isValid', isValid);
-  generateButton.data('validationMessage', message);
-  
-  // Just update visual appearance, don't disable
+  // Update button appearance
   generateButton.removeClass('btn-primary btn-secondary')
                .addClass(isValid ? 'btn-primary' : 'btn-secondary');
   
-  // Clean up any existing tooltip
-  const existingTooltip = bootstrap.Tooltip.getInstance(generateButton[0]);
-  if (existingTooltip) {
-      existingTooltip.dispose();
+  // Clear any existing alerts
+  alertContainer.empty();
+  
+  // Show validation message in a prominent alert if invalid
+  if (!isValid && message) {
+    // Create and show Bootstrap alert
+    const alert = $(`
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>Cannot Generate Documents:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `);
+    
+    // Add alert with animation
+    alertContainer.append(alert);
+    
+    // Scroll the alert into view
+    alert[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    // Optional: Add subtle pulse animation to draw attention
+    alert.css('animation', 'pulse 2s');
   }
   
-  // Set up tooltip if there's a validation message and not valid
+  // Keep the tooltip as a secondary indicator
+  const existingTooltip = bootstrap.Tooltip.getInstance(generateButton[0]);
+  if (existingTooltip) {
+    existingTooltip.dispose();
+  }
+  
   if (!isValid && message) {
-      const tooltip = new bootstrap.Tooltip(generateButton[0], {
-          title: message,
-          placement: 'top',
-          trigger: 'hover'
-      });
+    new bootstrap.Tooltip(generateButton[0], {
+      title: message,
+      placement: 'top',
+      trigger: 'hover'
+    });
   }
 }
+// async function updateGenerateButtonState() {
+//   const generateButton = $('#generate_documents_button');
+//   const [isValid, message] = await validateGenerateButton();
+  
+//   // Store validation state on the button element
+//   generateButton.data('isValid', isValid);
+//   generateButton.data('validationMessage', message);
+  
+//   // Just update visual appearance, don't disable
+//   generateButton.removeClass('btn-primary btn-secondary')
+//                .addClass(isValid ? 'btn-primary' : 'btn-secondary');
+  
+//   // Clean up any existing tooltip
+//   const existingTooltip = bootstrap.Tooltip.getInstance(generateButton[0]);
+//   if (existingTooltip) {
+//       existingTooltip.dispose();
+//   }
+  
+//   // Set up tooltip if there's a validation message and not valid
+//   if (!isValid && message) {
+//       const tooltip = new bootstrap.Tooltip(generateButton[0], {
+//           title: message,
+//           placement: 'top',
+//           trigger: 'hover'
+//       });
+//   }
+// }
 
 // Add event listeners for button hover
 function initializeGenerateButtonTooltip() {

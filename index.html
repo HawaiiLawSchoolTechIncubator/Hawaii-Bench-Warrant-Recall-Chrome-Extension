@@ -86,6 +86,15 @@
       flex: 1;
     }
 
+    #attorney_info_display.no-attorney a {
+      text-decoration: underline !important;
+      text-underline-offset: 2px !important;
+    }
+    
+    #attorney_info_display:not(.no-attorney) a {
+      text-decoration: none !important;
+    }
+
     #client_name {
       font-weight: bold;
       margin-bottom: 4px;
@@ -290,6 +299,29 @@
       font-weight: 500;
       /* Slightly bolder when selected */
     }
+
+    /* Generate Documents validation error pulse animation */
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+      }
+    }
+
+    #validation-alert-container .alert {
+      margin-bottom: 0;
+      transition: all 0.3s ease-in-out;
+    }
+
+    #validation-alert-container .alert.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
   </style>
 </head>
 
@@ -302,13 +334,13 @@
         For Licensed Attorneys Only &centerdot; Please Verify Generated Output
       </p>
       <!-- Attorney Info Link -->
-      <a href="#" id="attorney_info_display" class="text-white text-decoration-none">
+      <a href="#" id="attorney_info_display" class="text-white">
         <small>Set Attorney Information</small>
       </a>
 
       <!-- Tool Mode Toggle -->
       <div class="switch-container">
-        <span class="mode-label">Mode:</span>
+        <!--<span class="mode-label">Mode:</span>-->
         <div class="box-switch">
           <input type="radio" id="expungement-box" name="tool-mode" value="expungement" checked />
           <label for="expungement-box">Expungement</label>
@@ -316,11 +348,6 @@
           <label for="warrant-box">Warrant Check</label>
         </div>
       </div>
-
-      <!-- Attorney Info Link -->
-      <!--<a href="#" id="attorney_info_link" class="text-white text-decoration-none">
-            <small>Set Attorney Information</small>
-          </a>-->
     </div>
 
     <!-- Button row 1: "Evaluate Case" and "Check Overview Page" -->
@@ -342,6 +369,9 @@
         Generate Documents
       </button>
     </div>
+
+    <!-- Display validation errors here -->
+    <div id="validation-alert-container" class="mb-3"></div>
 
     <!-- Defendant Information Text Fields (access by clicking "Defendant" link among case table headers) -->
     <div id="client_info">
