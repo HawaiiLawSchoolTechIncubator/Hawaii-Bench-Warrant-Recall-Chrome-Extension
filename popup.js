@@ -1,10 +1,6 @@
-let alternateFirstName = "";
-let alternateMiddleName = "";
-let alternateLastName = "";
-let alternateSex = "";
-
 let currentMode = "expungement"; // Default mode (can be 'expungement' or 'warrant') 
 
+/////////////////////// Storage Functions ///////////////////////
 // Function to load mode from storage
 function loadMode() {
   return new Promise((resolve) => {
@@ -26,6 +22,93 @@ function saveMode(mode) {
     });
   });
 }
+
+function getCases() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(null, function (items) {
+      var cases = items["cases"] ? items["cases"] : [];
+      console.log("Retrieved cases from storage:", cases);
+      resolve(cases);
+    });
+  });
+}
+function getClient() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(null, function (items) {
+      var client = items["client"] ? items["client"] : {};
+      resolve(client);
+    });
+  });
+}
+
+// Clear in-memory data
+function resetInMemoryState() {
+  // Reset warrant details
+  warrantDetails = {
+    consultationDate: "",
+    consultationTown: "",
+    consultVerbPhrase: "",
+    nonAppearanceDate: "",
+    warrantIssueDate: "",
+    warrantAmount: "",
+    caseNumber: ""
+  };
+
+  // Reset attorney info
+  attorneyInfo = {
+    isPublicDefender: true,
+    firmName: "",
+    attorneyName: "",
+    attorneyRegistration: "",
+    attorneySignatureLocation: "",
+    headPdName: "",
+    headPdRegistration: "",
+    attorneyAddress1: "",
+    attorneyAddress2: "",
+    attorneyAddress3: "",
+    attorneyAddress4: "",
+    attorneyTelephone: "",
+    attorneyFax: "",
+    attorneyEmail: "",
+    circuitOrdinal: ""
+  };
+
+  // Reset alternate info
+  alternateFirstName = "";
+  alternateMiddleName = "";
+  alternateLastName = "";
+  alternateAddressLine1 = "";
+  alternateAddressLine2 = "";
+  alternateAddressLine3 = "";
+  alternatePhone = "";
+  alternateEmail = "";
+  alternateDOB = "";
+  alternateSex = "";
+}
+
+/////////////////////// Generate Documents Validation ///////////////////////
+// FINAL DETERMINATION OF BENCH WARRANT STATUS TO DECIDE WHETHER TO GENERATE BENCH WARRANT PAPERWORK
+function isWarrantStatusSufficientForPaperwork(warrantStatus, override, caseType) {
+  console.log("Warrant status:", warrantStatus);
+  console.log("Override:", override);
+  return warrantStatus?.hasOutstandingWarrant || override;
+}
+
+// FINAL DETERMINATION OF EXPUNGEABILITY TO DECIDE WHETHER TO GENERATE EXPUNGEMENT PAPERWORK
+function isExpungeableEnoughForPaperwork(expungeableStatus, override) {
+  return (
+    expungeableStatus === "All Expungeable" ||
+    //expungeableStatus === "Some Expungeable" ||
+    //expungeableStatus === "All Possibly Expungeable" ||
+    override
+  );
+}
+
+/////////////////////// Alternate Client Info ///////////////////////
+let alternateFirstName = "";
+let alternateMiddleName = "";
+let alternateLastName = "";
+let alternateSex = "";
 
 function loadAlternateInfo() {
   return new Promise((resolve) => {
@@ -57,22 +140,6 @@ function loadAlternateInfo() {
       }
     );
   });
-}
-// FINAL DETERMINATION OF BENCH WARRANT STATUS TO DECIDE WHETHER TO GENERATE BENCH WARRANT PAPERWORK
-function isWarrantStatusSufficientForPaperwork(warrantStatus, override, caseType) {
-  console.log("Warrant status:", warrantStatus);
-  console.log("Override:", override);
-  return warrantStatus?.hasOutstandingWarrant || override;
-}
-
-// FINAL DETERMINATION OF EXPUNGEABILITY TO DECIDE WHETHER TO GENERATE EXPUNGEMENT PAPERWORK
-function isExpungeableEnoughForPaperwork(expungeableStatus, override) {
-  return (
-    expungeableStatus === "All Expungeable" ||
-    //expungeableStatus === "Some Expungeable" ||
-    //expungeableStatus === "All Possibly Expungeable" ||
-    override
-  );
 }
 
 // Function to save alternate names and address to Chrome storage
@@ -117,24 +184,6 @@ const log = (message) => {
   }
 };
 
-function getCases() {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get(null, function (items) {
-      var cases = items["cases"] ? items["cases"] : [];
-      console.log("Retrieved cases from storage:", cases);
-      resolve(cases);
-    });
-  });
-}
-function getClient() {
-  return new Promise((resolve, reject) => {
-    chrome.storage.local.get(null, function (items) {
-      var client = items["client"] ? items["client"] : {};
-      resolve(client);
-    });
-  });
-}
-
 function normalizeDefendantName(name) {
   // Remove any extra whitespace and split the name
   const nameParts = name.trim().split(/\s+/);
@@ -157,11 +206,6 @@ function normalizeDefendantName(name) {
     firstName = "";
     middleName = "";
   }
-
-  // Use alternate names if they exist
-  // lastName = alternateLastName || lastName;
-  // firstName = alternateFirstName || firstName;
-  // middleName = alternateMiddleName || middleName;
 
   // Use alternate names including blank strings for ALL names if ANY alternate name exists
   if (alternateFirstName || alternateMiddleName || alternateLastName) {
@@ -688,17 +732,6 @@ function updateOverrideStatus(caseNumber, isOverridden) {
   });
 }
 
-// // Chrome storage listener to trigger actions when data changes
-// chrome.storage.onChanged.addListener(async (changes, namespace) => {
-//   // If any of these change, we need to update the generate button state
-//   if (changes.warrantDetails || 
-//       changes.attorneyInfo || 
-//       changes.toolMode) {
-//       // Update the generate button state on storing warrant/attorney/tool mode changes
-//       await updateGenerateButtonState();
-//   }
-// });
-
 // Storage listener updates validation state
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
   // Check if any relevant data has changed
@@ -826,14 +859,29 @@ jQuery("#overview_button").click(function () {
 //Empties Cases and Client from local Storage
 jQuery("#emptycases").click(function () {
   console.log("Deleting Client and Cases");
-  chrome.storage.local.clear(function () {
+  chrome.storage.local.clear(async function () {
     var error = chrome.runtime.lastError;
     if (error) {
       console.error(error);
     }
+    
+    // Reset all in-memory state
+    resetInMemoryState();
+    
+    // Update UI
     chrome.runtime.sendMessage({ action: "overview_page" });
-    displayClientInfo();
-    displayCases();
+    updateAttorneyDisplay();
+    await displayClientInfo();
+    await displayCases();
+    await updateGenerateButtonState();
+    
+    // Force refresh any open forms
+    if ($("#warrant_recall_details_section").is(":visible")) {
+      showWarrantDetailsForm();
+    }
+    if ($("#attorney_info_container").is(":visible")) {
+      updateFormFields();
+    }
   });
 });
 
@@ -1259,6 +1307,9 @@ function  attachWarrantDetailsHandlers() {
 
       await saveWarrantDetails();
       $("#warrant_recall_details_section").hide();
+      // Scroll to Evaluate Case button (makes Back button visible and more prominent)
+      $("#evaluate_case_button").get(0).scrollIntoView({ behavior: "smooth" });
+      
   });
 
   // Add input event handlers to remove invalid state when user starts typing
@@ -1316,6 +1367,7 @@ function  attachWarrantDetailsHandlers() {
   $("#cancel_warrant_recall_details").on("click", function () {
     $("#warrant_recall_details_section").hide();
     showWarrantDetailsForm(); // Reset to last saved state
+    $("#evaluate_case_button").get(0).scrollIntoView({ behavior: "smooth" }); // Scroll to Evaluate Case button (makes Back button visible and more prominent)
   });
 
   // Add input listeners for immediate state updates
@@ -1480,14 +1532,13 @@ async function initializeWarrantUI(caseData) {
   if (currentMode === 'warrant' && 
       isWarrantStatusSufficientForPaperwork(caseData.warrantStatus, caseData.OverrideWarrant)) {
       
-      // First load any existing stored values
+      // First load the default settings
+      const defaultDataUrl = chrome.runtime.getURL('settings.json');
+      const defaultResponse = await fetch(defaultDataUrl);
+      const defaultData = await defaultResponse.json();
+
+      // Then load any existing stored values
       await loadWarrantDetails(caseData.CaseNumber);
-      
-      // // Then set defaults only for empty values
-      // NO: this gets the timezone wrong and is already hnandled in showWarrantDetailsForm
-      // if (!warrantDetails.consultationDate) {
-      //     warrantDetails.consultationDate = new Date().toISOString().split('T')[0];
-      // }
 
       // Set warrant issue date from case docket warrant details if not otherwise set
       if (!warrantDetails.warrantIssueDate && caseData.warrantStatus?.latestWarrantDate) {
@@ -1499,13 +1550,27 @@ async function initializeWarrantUI(caseData) {
           }
       }
 
-      // Set warrant amount from case docket warrant details if not otherwise set
-      if (!warrantDetails.warrantAmount && caseData.warrantStatus?.latestBailAmount) {
-          const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
-          if (!isNaN(numericBail)) {
-              warrantDetails.warrantAmount = numericBail;
-          }
+      // Set warrant amount from case docket warrant details if not otherwise set,
+      // falling back to default amount from settings if no amount found
+      if (!warrantDetails.warrantAmount) {
+        if (caseData.warrantStatus?.latestBailAmount) {
+            const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
+            if (!isNaN(numericBail)) {
+                warrantDetails.warrantAmount = numericBail;
+            }
+        } else {
+            // Use default amount from settings if no amount found in docket
+            warrantDetails.warrantAmount = defaultData.default_warrant_amount;
+        }
       }
+
+      // // Set warrant amount from case docket warrant details if not otherwise set
+      // if (!warrantDetails.warrantAmount && caseData.warrantStatus?.latestBailAmount) {
+      //     const numericBail = caseData.warrantStatus.latestBailAmount.replace(/,/g, '');
+      //     if (!isNaN(numericBail)) {
+      //         warrantDetails.warrantAmount = numericBail;
+      //     }
+      // }
 
       // Set non-appearance date from case docket warrant details if not otherwise set
       if (!warrantDetails.nonAppearanceDate && caseData.warrantStatus?.latestNonAppearanceDate) {
@@ -1681,6 +1746,7 @@ function attachAttorneyInfoHandlers() {
       e.preventDefault();
       await resetFormToSavedValues(); // Reset to saved values before showing
       $("#attorney_info_container").show();
+      $("#attorney_info_container").get(0).scrollIntoView({ behavior: "smooth" }); // Scroll to form
   });
 
   // Confirm button handler with validation
@@ -2007,18 +2073,18 @@ async function validateGenerateAttorneyInfo() {
 
   // Required for both types
   if (!info.attorneyName?.trim() || !info.attorneyRegistration?.trim()) {
-      return [false, 'Attorney name and registration are required'];
+      return [false, 'Missing attorney name & registration'];
   }
 
   if (info.isPublicDefender) {
       if (!info.headPdName?.trim() || !info.headPdRegistration?.trim()) {
-          return [false, 'Head Public Defender information is required'];
+          return [false, 'Missing Head Public Defender information'];
       }
   } else {
       if (!info.attorneyAddress1?.trim() || 
           !info.attorneyAddress2?.trim() || 
           !info.attorneyTelephone?.trim()) {
-          return [false, 'Private attorney contact information is required'];
+          return [false, 'Missing private attorney address & telephone'];
       }
   }
 

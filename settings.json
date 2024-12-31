@@ -1,4 +1,5 @@
 {
     "head_public_defender_name": "Jon N. Ikenaga",
-    "head_public_defender_registration": "6284"
+    "head_public_defender_registration": "6284",
+    "default_warrant_amount": "500"
 }
