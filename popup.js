@@ -380,28 +380,92 @@ function addInputListener(inputField, variableName) {
   });
 }
 
+// Function to delete a single case
+async function deleteCase(caseNumber) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get("cases", function(result) {
+      let cases = result.cases || [];
+      // Filter out the case with matching case number
+      cases = cases.filter(c => c.CaseNumber !== caseNumber);
+      
+      // Save updated cases array back to storage
+      chrome.storage.local.set({ cases }, function() {
+        console.log(`Case ${caseNumber} deleted`);
+        resolve();
+      });
+    });
+  });
+}
+
 function updateInputFields() {
   $("#alternate_first_name_input").val(alternateFirstName);
   $("#alternate_middle_name_input").val(alternateMiddleName);
   $("#alternate_last_name_input").val(alternateLastName);
 }
 
+// displayCases with switch and delete button together: v5
+// Modified displayCases function with reorganized layout
 async function displayCases() {
   var allcases = await getCases();
   console.log("Displaying Cases");
 
-  let html = "<table class='table table-striped'>";
-  html +=
-    "<thead><tr><th scope='col'>Case Number</th><th scope='col' id='defendant-header' style='cursor: pointer;'>Defendant</th><th scope='col'>Assessment</th><th scope='col'>Override</th></tr></thead>";
+  let html = "<table class='table table-striped align-middle'>";
+  html += "<thead><tr><th scope='col' style='width: 45px'></th><th scope='col'>Case Number</th><th scope='col' id='defendant-header' style='cursor: pointer;'>Defendant</th><th scope='col'>Assessment</th></tr></thead>";
   html += "<tbody>";
 
   if (allcases.length != 0) {
     for (var x = allcases.length - 1; x >= 0; x--) {
+      const isExpungeable = currentMode === "expungement" ? 
+        isExpungeableEnoughForPaperwork(allcases[x]["Expungeable"]) :
+        isWarrantStatusSufficientForPaperwork(allcases[x]?.warrantStatus);
+
+      const overrideText = currentMode === "expungement" ? 
+        "expungement paperwork" :
+        "warrant paperwork";
+
       html += "<tr scope='row'>";
-      // Case number cell
-      html += `<td><a href="#" class="case-link" data-case-index="${x}">${allcases[
-        x
-      ]["CaseNumber"].trim()}</a></td>`;
+      
+      // Actions column (delete button and override switch)
+      html += `
+        <td class="px-1 pe-0">
+          <div class="d-flex flex-column align-items-center">
+            <button class="btn p-0 text-danger delete-case-btn" 
+                    style="font-size: 1.0rem; line-height: 1.0; text-decoration: none; position: relative; top: 0.4em;"
+                    data-case-number="${allcases[x]["CaseNumber"]}"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="top"
+                    title="Delete this case">
+              ×
+            </button>
+            <div class="form-check form-switch mb-0 mt-2">
+              <input type="checkbox" 
+                     class="form-check-input override-checkbox" 
+                     id="override-${allcases[x]["CaseNumber"]}"
+                     data-case-number="${allcases[x]["CaseNumber"]}" 
+                     ${currentMode === "expungement" ? 
+                       (allcases[x]["Override"] ? "checked" : "") :
+                       (allcases[x]["OverrideWarrant"] ? "checked" : "")
+                     }
+                     ${isExpungeable ? "disabled" : ""}
+                     data-bs-toggle="tooltip"
+                     data-bs-placement="top"
+                     title="${isExpungeable ? 
+                       `${overrideText} will be generated automatically` : 
+                       `Check to force ${overrideText} generation`}">
+            </div>
+          </div>
+        </td>`;
+
+      // Case number cell with override label
+      html += `
+        <td class="ps-0">
+          <div class="d-flex flex-column">
+            <a href="#" class="case-link text-decoration-none" data-case-index="${x}">${allcases[x]["CaseNumber"].trim()}</a>
+            <span class="text-muted" style="font-size: 0.75rem;">
+              ${isExpungeable ? "Will generate" : "Override assessment"}
+            </span>
+          </div>
+        </td>`;
 
       // Defendant name cell
       html += "<td><span>" + formatDefendantName(allcases[x]) + "</span></td>";
@@ -412,11 +476,8 @@ async function displayCases() {
       } else if (currentMode === "warrant") {
         html += generateWarrantStatusCell(allcases[x]);
       } else {
-        html += `<td>Error: unknown tool mode ${currentMode}</td>`; // Empty cell for unknown mode
+        html += `<td>Error: unknown tool mode ${currentMode}</td>`;
       }
-
-      // Override cell based on mode
-      html += generateOverrideCell(allcases[x], currentMode);
 
       html += "</tr>";
     }
@@ -427,7 +488,40 @@ async function displayCases() {
   html += "</tbody></table>";
 
   $("#tablediv").html(html);
+  
+  // Attach event listeners for existing functionality
   attachEventListeners(allcases);
+  
+  // Add event listeners for delete buttons
+  $(".delete-case-btn").on("click", async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const caseNumber = $(this).data("case-number");
+
+    // Hide the tooltip before showing the confirmation dialog
+    const tooltipInstance = bootstrap.Tooltip.getInstance(this);
+    if (tooltipInstance) {
+      tooltipInstance.hide();
+    }
+    
+    // Show confirmation dialog
+    if (confirm(`Are you sure you want to delete case ${caseNumber}?`)) {
+      await deleteCase(caseNumber);
+      await displayCases(); // Refresh the display
+      await updateGenerateButtonState();
+    }
+  });
+
+  // Add event listeners for override checkboxes with tooltip management
+  $(".override-checkbox").on("click", function() {
+    // Hide the tooltip associated with this checkbox
+    const tooltipInstance = bootstrap.Tooltip.getInstance(this);
+    if (tooltipInstance) {
+      tooltipInstance.hide();
+    }
+  });
+  
   initTooltips();
 }
 
@@ -1289,24 +1383,6 @@ function showWarrantDetailsForm() {
                         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                         String(today.getDate()).padStart(2, '0');
                         // Today's date assumed to be in HST timezone
-
-  // Create date with explicit HST offset (-10 hours)
-  //const now = new Date(Date.now() - (10 * 60 * 60 * 1000));
-  //const today = now.toISOString().split('T')[0];
-  // const now = new Date();
-  // console.log("Current date object:", now);
-  
-  // const hstDate = now.toLocaleDateString('en-US', {
-  //   timeZone: 'Pacific/Honolulu',
-  //   year: 'numeric',
-  //   month: '2-digit', 
-  //   day: '2-digit'
-  // });
-  // console.log("HST formatted date:", hstDate);
-  
-  // const today = hstDate.split('/').reverse().join('-');
-  // console.log("Final formatted date:", today);
-
 
   // Set default values if they're not already set
   if (!warrantDetails.consultationDate) {
