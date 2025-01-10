@@ -77,6 +77,7 @@ const utils = {
      * @returns {Object} An object containing the extracted case information.
      * @property {string} caseId - The ID of the case.
      * @property {string} caseName - The name of the case.
+     * @property {string} caseTypeDescription - The description of the case type, e.g., 'TC - Traffic Crime'.
      * @property {string} courtLocation - The location of the court.
      * @property {string} courtCircuit - The case's Hawaii circuit.
      * @property {string} filingDate - The filing date of the case.
@@ -90,6 +91,11 @@ const utils = {
     const caseInfo = caseInfoElement.text();
     const caseId = caseInfo.slice(9, 24).trim().split(" ")[0];
     const caseName = caseInfo.slice(27, caseInfo.indexOf("Type:"));
+    
+    let caseTypeDescription = caseInfoElement.html().slice(caseInfoElement.html().indexOf("Type:"));
+    caseTypeDescription = caseTypeDescription.slice(5, caseTypeDescription.length - 1);
+    caseTypeDescription = caseTypeDescription.replace("</b>", "");
+    caseTypeDescription = caseTypeDescription.slice(0, caseTypeDescription.indexOf("<br>")).trim();
 
     let defendantName = null;
     // console.log(`caseInfo: '${caseInfo}'`);
@@ -146,7 +152,7 @@ const utils = {
     };
     const courtCircuit = digitToOrdinal[caseId[0]] || "Unknown";
 
-    return { caseId, caseName, courtLocation, courtCircuit, filingDate, defendantName };
+    return { caseId, caseName, caseTypeDescription, courtLocation, courtCircuit, filingDate, defendantName, caseTypeDescription };
   },
   // Function to create and show the dialog
   showDialog(title, message) {
@@ -2705,74 +2711,99 @@ class DTICaseProcessor extends CaseProcessor {
 
 // Case Processor Factory
 class CaseProcessorFactory {
-  static createProcessor() {
-    let caseId
-    try {
-        ({ caseId } = utils.extractCaseInfo());
-    } catch (error) {
-        // User tries to check expungeability before searching for a case
-        utils.showDialog(
-            "Case Record Not Recognized",
-            `This page does not appear to be a case record.`
-        );
-        window.__suppressErrorHandlerTwice = true;
-        return null;
-    }
-    
+  static PROCESSOR_MAP = {
+    'CPC': CPCCaseProcessor,
+    'PC': PCCaseProcessor,
+    'FFC': FFCCaseProcessor,
+    'DTC': DTCCaseProcessor,
+    'DCW': DCWCaseProcessor,
+    'DCC': DCCCaseProcessor,
+    'DTA': DTACaseProcessor,
+    'DTI': DTICaseProcessor
+  };
 
-    // Determine case type based on case ID
-    if (caseId.includes("CPC")) {
-      return new CPCCaseProcessor();
-    } else if (caseId.includes("PC")) {
-      return new PCCaseProcessor();
-    } else if (caseId.includes("FFC")) {
-      return new FFCCaseProcessor();
-    } else if (caseId.includes("DTC")) {
-      return new DTCCaseProcessor();
-    } else if (caseId.includes("DCW")) {
-      return new DCWCaseProcessor();
-    } else if (caseId.includes("DCC")) {
-      return new DCCCaseProcessor();
-    } else if (caseId.includes("DTA")) {
-      return new DTACaseProcessor();
-    } else if (caseId.includes("DTI")) {
-      return new DTICaseProcessor();
+  static DESCRIPTION_TYPE_MAP = {
+    "TC - Traffic Crime": ["DTA", "DTC"],
+    "CW - Criminal Written Complaint": ["DCW"],
+    "PC - Circuit Court Criminal": ["CPC", "PC"],
+    "SS - Temp Restraining Order": ["DSS", "SS"],
+    "CC - Criminal Citation": ["DCC"],
+    "TI - Traffic Infraction": ["DTI"],
+    "TP - Traffic Parking": ["DTP"],
+    "DV - Divorce": ["DV", "FDV"],
+    "WC - Appln for Writ of Certiorari": ["SCWC"],
+    "LD - Land Court": ["LD", "CLD"],
+    "AP - Appeal": ["CAAP"],
+    "SP - Special Proceeding": ["SP"],
+    "CV - Circuit Court Civil": ["CCV", "CC"],
+    "UJ - Unif Child Cust Juris&Enf Act": ["UJ"],
+    "FC - Family Court Criminal": ["FFC"],
+    "RC - Regular Claim": ["RC"],
+    "DA - Domestic Abuse": ["DA"],
+    "GD - Guardianship": ["GD"],
+    "CU - Civil Union": ["CU"],
+    "AA - Adult Abuse": ["AA"]
+  };
+
+  static handleInvalidCase(formElement, caseInfoElement) {
+    const caseInfo = caseInfoElement.text() || "";
+    
+    if (formElement.action.includes("CaseSearch") && caseInfo.includes("Case ID:")) {
+      utils.showDialog(
+        "Unsupported Case Type",
+        "This case type is not currently supported."
+      );
+    } else if (formElement.action.includes("CaseSearch") && caseInfo.includes("cases found")) {
+      utils.showDialog(
+        "Please Select a Case",
+        "Cannot check expungeability from the search results page. Please click on a case and try again."
+      );
     } else {
-      const formElement = document.querySelector("form");
-      const caseInfoElement = $(
-        ".iceDatTbl,.data:first > tbody > tr > td"
-      ).first();
-      const caseInfo = caseInfoElement.text() || "";
-      if (
-        formElement.action.includes("CaseSearch") &&
-        caseInfo.includes("Case ID:")
-      ) {
-        // User tries to check expungeability of unsupported case type
-        console.log(`Case description value: ${caseInfoElement}`);
-        utils.showDialog(
-          "Unsupported Case Type",
-          `This case type is not currently supported.`
-        );
-      } else if (
-        formElement.action.includes("CaseSearch") &&
-        caseInfo.includes("cases found")
-      ) {
-        // User tries to check expungeability on search results page
-        utils.showDialog(
-          "Please Select a Case",
-          `Cannot check expungeability from the search results page. Please click on a case and try again.`
-        );
-      } else {
-        // User tries to check expungeability on an unknown page
-        utils.showDialog(
-          "Case Record Not Recognized",
-          `This page does not appear to be a case record.`
-        );
-      }
+      utils.showDialog(
+        "Case Record Not Recognized",
+        "This page does not appear to be a case record."
+      );
+    }
+    window.__suppressErrorHandlerTwice = true;
+    return null;
+  }
+
+  static createProcessor() {
+    let caseId, caseTypeDescription;
+    try {
+      ({ caseId, caseTypeDescription } = utils.extractCaseInfo());
+      console.log(`Case Description: ${caseTypeDescription}`);
+    } catch (error) {
+      utils.showDialog(
+        "Case Record Not Recognized",
+        "This page does not appear to be a case record."
+      );
       window.__suppressErrorHandlerTwice = true;
       return null;
-      //throw new Error(`Unknown case type for case ID: ${caseId}`);
     }
+
+    // Find matching processor type in PROCESSOR_MAP lookup table
+    const matchingType = Object.keys(this.PROCESSOR_MAP).find(type => caseId.includes(type));
+    if (matchingType) {
+      return new this.PROCESSOR_MAP[matchingType]();
+    } else {
+      // Try again by looking up caseTypeDescription in DESCRIPTION_TYPE_MAP
+      // (using the first value in the array if found), then finding the
+      // corresponding processor type in PROCESSOR_MAP
+      const matchingDescription = Object.keys(this.DESCRIPTION_TYPE_MAP).find(description => caseTypeDescription.includes(description));
+      if (matchingDescription) {
+        const processorTypes = this.DESCRIPTION_TYPE_MAP[matchingDescription];
+        const processorType = processorTypes[0];
+        if (processorType in this.PROCESSOR_MAP) {
+          return new this.PROCESSOR_MAP[processorType]();
+        }
+      }
+    }
+
+    // Handle invalid/unsupported case types
+    const formElement = document.querySelector("form");
+    const caseInfoElement = $(".iceDatTbl,.data:first > tbody > tr > td").first();
+    return this.handleInvalidCase(formElement, caseInfoElement);
   }
 }
 
