@@ -159,20 +159,6 @@ function processCaseRow($row, cases, statusColumnIndex, caseTypeColumnIndex) {
     }
 
     const caseTypePrefixes = ['CPC', 'PC', 'DTC', 'DCW', 'DCC', 'DTA', 'FFC', 'DTI'];
-    const caseTypes = ['Traffic Infraction', 
-        'Traffic Crime', 
-        'Traffic Parking',
-        'Administrative Review', 
-        'Divorce', 
-        'Circuit Court Criminal',
-        'Circuit Court Civil',
-        'Criminal Written Complaint',
-        'Criminal Citation',
-        'DC Temp Restraining Order',
-        'Domestic Abuse',
-        'Appeal'
-    ]
-    
     const needsCheck = caseTypePrefixes.some(type => caseNumber.includes(type));
     const existingCase = cases.find(caseItem => caseItem.CaseNumber === caseNumber);
 

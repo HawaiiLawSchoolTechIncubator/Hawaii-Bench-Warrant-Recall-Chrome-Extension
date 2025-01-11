@@ -3089,12 +3089,13 @@ class DocketService {
     const warrantResults = {
       hasOutstandingWarrant: false,
       warrantEntries: [],
+      latestWarrantType: null,
       latestWarrantDate: null,
       latestRecallDate: null,
       latestBailAmount: null,
       latestNonAppearanceDate: null,
       explanation: ""
-  };
+    };
 
     // Find and categorize relevant entries
     this.findWarrantRelatedEntries(entries, warrantResults);
@@ -3134,7 +3135,12 @@ class DocketService {
     const latestRecall = results.warrantEntries.find(entry => entry.warrantAction?.includes('recall'));
     const latestBailAmount = results.warrantEntries.find(entry => entry.warrantAction?.includes('bail set'));
     const latestNonAppearance = results.warrantEntries.find(entry => entry.warrantAction?.includes('non-appearance'));
+    const latestWarrantType = results.warrantEntries.find(entry => entry.warrantType);
     
+    if (latestWarrantType) {
+      let latestWarrantTypePhrase = latestWarrant.warrantType
+        results.latestWarrantType = this.warrantTypeToPhrase(latestWarrantTypePhrase);
+    }
 
     if (latestWarrant) {
         results.latestWarrantDate = latestWarrant.date;
@@ -3148,6 +3154,22 @@ class DocketService {
     if (latestNonAppearance) {
       results.latestNonAppearanceDate = latestNonAppearance.date;
     }
+  }
+
+  // Convert warrant type to phrase suitable for a sentence
+  warrantTypeToPhrase(type, cap_first = false) {
+    if (!type) {
+        return null;
+    }
+    console.log('WARRANT TYPE TO PHRASE INPUT:', type);
+    // Everything other than a penal summons has 'warrant' appended
+    if (type.toLowerCase() != 'penal summons') {
+      type += ' warrant';
+    }
+    if (cap_first) {
+      type = type.charAt(0).toUpperCase() + type.slice(1);
+    }
+    return type;
   }
 
   // Helper method to determine final warrant status
@@ -3175,7 +3197,7 @@ class DocketService {
             
             results.hasOutstandingWarrant = false;
             results.explanation = 
-                `Found warrant ${latestAction.warrantAction} on ${latestAction.date.toLocaleDateString()} ` +
+                `Found ${this.warrantTypeToPhrase(latestAction.warrantType)} ${latestAction.warrantAction} on ${latestAction.date.toLocaleDateString()} ` +
                 `but no corresponding issuance entry. ` +
                 `${latestAction.warrantbailAmount ? 
                     `(Bail amount: $${latestAction.warrantbailAmount})` : 
@@ -3197,10 +3219,11 @@ class DocketService {
     const latestAction = subsequentActions[0];
 
     if (latestAction) {
-        // Warrant was recalled or executed
+        // Warrant was recalled or executed in latest warrant action
         results.hasOutstandingWarrant = false;
+        console.log('Latest warrant type:', results.latestWarrantType);
         results.explanation = 
-            `Warrant issued on ${latestWarrant.date.toLocaleDateString()} was ` +
+            `${this.warrantTypeToPhrase(results.latestWarrantType, true)} issued on ${latestWarrant.date.toLocaleDateString()} was ` +
             `${latestAction.warrantAction === 'recall' ? 'recalled' : 'executed'} ` +
             `on ${latestAction.date.toLocaleDateString()}.` +
             `${latestWarrant.warrantbailAmount ? 
@@ -3209,8 +3232,11 @@ class DocketService {
     } else {
         // Warrant is still outstanding
         results.hasOutstandingWarrant = true;
+        let latestWarrantTypePhrase = latestWarrant.warrantType
+        latestWarrantTypePhrase = this.warrantTypeToPhrase(latestWarrantTypePhrase, true);
+
         results.explanation = 
-            `${latestWarrant.warrantType.charAt(0).toUpperCase() + latestWarrant.warrantType.slice(1)} warrant ` +
+            `${latestWarrantTypePhrase} ` +
             `issued on ${latestWarrant.date.toLocaleDateString()} ` +
             `${latestWarrant.warrantbailAmount ? 
                 `with bail set at $${latestWarrant.warrantbailAmount} ` : 
