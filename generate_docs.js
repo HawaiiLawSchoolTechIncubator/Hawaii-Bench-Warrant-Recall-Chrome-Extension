@@ -904,7 +904,7 @@ const DocumentGenerator = (function () {
         if (dataKey.startsWith("literal: ")) {
           replacementValue = dataKey.slice(8);
         } else {
-          replacementValue = replacementData[dataKey] || `NO VALUE FOR ${dataKey}`;
+          replacementValue = replacementData[dataKey] || '';
         }
         
         console.log(`Replacing ${placeholder} with ${dataKey}`);
