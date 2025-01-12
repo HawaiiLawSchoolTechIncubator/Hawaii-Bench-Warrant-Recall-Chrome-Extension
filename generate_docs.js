@@ -52,6 +52,7 @@ const DocumentGenerator = (function () {
           υ: "consultationYear",
           ψ: "consultVerbPhrase",
           Ϝ: "courtCircuit",
+          "{{year}}": `literal: ${new Date().getFullYear().toString()}`,
         },
       },
       privateAttorney: {
@@ -82,6 +83,7 @@ const DocumentGenerator = (function () {
           υ: "consultationYear",
           ψ: "consultVerbPhrase",
           Ϝ: "courtCircuit",
+          "{{year}}": new Date().getFullYear().toString(),
         },
       },
     };
@@ -868,8 +870,10 @@ const DocumentGenerator = (function () {
         consultationDay: consultationDates.day,
         consultationYear: consultationDates.year,
         consultationTown: warrantDetails.consultationTown || "",
-        consultVerbPhrase: warrantDetails.consultVerbPhrase || "",
+        consultVerbPhrase: warrantDetails.consultVerbPhrase || "",        
       };
+      
+      // Literal values will be handled when replacements are performed
 
       // Log prepared data for debugging
       console.log("Prepared warrant replacement data:", replacementData);
@@ -893,10 +897,20 @@ const DocumentGenerator = (function () {
       );
 
       // Then handle all regular replacements using the template mapping
-      for (const [placeholder, dataKey] of Object.entries(templateMapping)) {
+      for (let [placeholder, dataKey] of Object.entries(templateMapping)) {
+        let replacementValue
+        // Remove "literal: " from dataKey starting with "literal: ..."
+        // and set replacementValue to the part of the string removed
+        if (dataKey.startsWith("literal: ")) {
+          replacementValue = dataKey.slice(8);
+        } else {
+          replacementValue = replacementData[dataKey] || `NO VALUE FOR ${dataKey}`;
+        }
+        
         console.log(`Replacing ${placeholder} with ${dataKey}`);
 
-        const replacementValue = replacementData[dataKey] || "";
+        
+        //const replacementValue = replacementData[dataKey] || "";
         const placeholderRegex = new RegExp(placeholder, "g");
         documentXmlContent = documentXmlContent.replace(
           placeholderRegex,
