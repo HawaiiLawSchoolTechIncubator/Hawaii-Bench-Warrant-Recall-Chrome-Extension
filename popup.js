@@ -91,7 +91,11 @@ function resetInMemoryState() {
 function isWarrantStatusSufficientForPaperwork(warrantStatus, override, caseType) {
   console.log("Warrant status:", warrantStatus);
   console.log("Override:", override);
-  return warrantStatus?.hasOutstandingWarrant || override;
+
+  // CANNOT HANDLE PENAL SUMMONS PAPERWORK AT THE MOMENT
+  // After implementing, don't forget to update the tooltip text in displayCases (check the forceGenerateText variable)
+  //return warrantStatus?.hasOutstandingWarrant || override;
+  return (warrantStatus?.hasOutstandingWarrant && warrantStatus?.latestWarrantType != 'penal summons') || override;
 }
 
 // FINAL DETERMINATION OF EXPUNGEABILITY TO DECIDE WHETHER TO GENERATE EXPUNGEMENT PAPERWORK
@@ -470,6 +474,12 @@ async function displayCases() {
       html += "<tr scope='row'>";
       
       // Actions column (delete button and override switch)
+      let forceGenerateText = `Check to force ${overrideText} generation`
+      if (currentMode === "warrant" && allcases[x]?.warrantStatus?.latestWarrantType === "penal summons") {
+        forceGenerateText = "Penal summons paperwork unavailable: check to generate bench warrant paperwork instead"
+      }
+
+
       html += `
         <td class="px-1 pe-0">
           <div class="d-flex flex-column align-items-center">
@@ -495,7 +505,7 @@ async function displayCases() {
                      data-bs-placement="top"
                      title="${isExpungeable ? 
                        `${overrideText} will be generated automatically` : 
-                       `Check to force ${overrideText} generation`}">
+                       `${forceGenerateText}`}">
             </div>
           </div>
         </td>`;
@@ -625,7 +635,11 @@ function generateWarrantStatusCell(caseData) {
   if (warrantStatus) {
     if (warrantStatus.hasOutstandingWarrant) {
       statusClass = "text-danger fw-bold";
-      statusText = "Outstanding Warrant";
+      if (warrantStatus?.latestWarrantType.toLowerCase() === "penal summons") {
+        statusText = "Outstanding Summons";
+      } else {
+        statusText = "Outstanding Warrant";
+      }
     } else if (warrantStatus.warrantEntries?.length > 0) {
       statusClass = "text-success";
       statusText = "No Outstanding Warrant";
@@ -1172,7 +1186,11 @@ async function displayCaseDetails(caseData) {
 
     if (warrantStatus) {
       if (warrantStatus.hasOutstandingWarrant) {
-        statusText = "Outstanding Warrant";
+        if (warrantStatus?.latestWarrantType.toLowerCase() === "penal summons") {
+          statusText = "Outstanding Summons";
+        } else {
+          statusText = "Outstanding Warrant";
+        }
         badgeClass += "bg-danger text-white";
       } else if (warrantStatus.warrantEntries?.length > 0) {
         statusText = "No Outstanding Warrant";

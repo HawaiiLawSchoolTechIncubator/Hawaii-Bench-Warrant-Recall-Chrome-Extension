@@ -115,6 +115,15 @@ function processCaseTable(cases) {
         }
     });
 
+    // Find or create "Case Type" column
+    let caseTypeColumnIndex = -1;
+    headerRow.find('th').each(function(index) {
+        if ($(this).text().trim() === "Check Status") {
+            caseTypeColumnIndex = index;
+            return false;  // break the loop
+        }
+    });
+
     if (statusColumnIndex === -1) {
         // Add "Check Status" column if it doesn't exist
         headerRow.append('<th>Check Status</th>');
@@ -123,7 +132,7 @@ function processCaseTable(cases) {
 
     // Process each row in the table body
     casesTable.find('tbody tr').each(function() {
-        processCaseRow($(this), cases, statusColumnIndex);
+        processCaseRow($(this), cases, statusColumnIndex, caseTypeColumnIndex);
     });
 
     log(`Processed ${casesTable.find('tbody tr').length} rows`);
@@ -131,8 +140,9 @@ function processCaseTable(cases) {
 }
 
 // Process individual case row
-function processCaseRow($row, cases, statusColumnIndex) {
+function processCaseRow($row, cases, statusColumnIndex, caseTypeColumnIndex) {
     const caseNumber = $row.find('td:nth-child(2) a').text().trim();
+
     if (caseNumber.length < 5) return;
 
     // Ensure the row has a cell for the status column
@@ -148,8 +158,8 @@ function processCaseRow($row, cases, statusColumnIndex) {
         return; // Skip if already processed
     }
 
-    const caseTypes = ['CPC', 'PC', 'DTC', 'DCW', 'DCC', 'DTA', 'FFC', 'DTI'];
-    const needsCheck = caseTypes.some(type => caseNumber.includes(type));
+    const caseTypePrefixes = ['CPC', 'PC', 'DTC', 'DCW', 'DCC', 'DTA', 'FFC', 'DTI'];
+    const needsCheck = caseTypePrefixes.some(type => caseNumber.includes(type));
     const existingCase = cases.find(caseItem => caseItem.CaseNumber === caseNumber);
 
     if (existingCase) {
