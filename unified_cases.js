@@ -70,7 +70,8 @@ const utils = {
 
     return result;
   },
-  extractCaseInfo: function () {
+  extractCaseInfo: function (htmlContent = null) {
+    const context = htmlContent || document;
     /**
      * Extracts case information from the provided HTML document.
      *
@@ -85,9 +86,9 @@ const utils = {
      */
 
     // Extract the case ID and the defendant's name
-    const caseInfoElement = $(
-      ".iceDatTbl,.data:first > tbody > tr > td"
-    ).first();
+      const caseInfoElement = $(context).find(
+        ".iceDatTbl,.data:first > tbody > tr > td"
+      ).first();
     const caseInfo = caseInfoElement.text();
     const caseId = caseInfo.slice(9, 24).trim().split(" ")[0];
     const caseName = caseInfo.slice(27, caseInfo.indexOf("Type:"));
@@ -119,7 +120,7 @@ const utils = {
     }
 
     // Extract the court location and filing date
-    const locationElement = document.querySelector(
+    const locationElement = context.querySelector(
       ".iceDatTbl.data > tbody > tr > td:nth-child(2)"
     );
     if (!locationElement) {
@@ -155,7 +156,7 @@ const utils = {
     return { caseId, caseName, caseTypeDescription, courtLocation, courtCircuit, filingDate, defendantName, caseTypeDescription };
   },
   // Function to create and show the dialog
-  showDialog(title, message) {
+  showDialog(title, message, htmlContent = null) {
     /**
      * Displays a dialog box with the specified title and message.
      *
@@ -163,39 +164,42 @@ const utils = {
      * @param {string} message - The message to be displayed in the dialog.
      * @returns {void}
      */
-    // console.log("showDialog function called with:", { title, message });
 
+    // Create dialog elements
+    const context = htmlContent ? $(htmlContent)[0] : document;
+    const body = context.querySelector('body') || document.body;
+  
     // Create dialog elements
     const dialog = document.createElement("div");
     dialog.className = "dialog-overlay";
-
+  
     const dialogContent = document.createElement("div");
     dialogContent.className = "dialog-content";
-
+  
     const dialogTitle = document.createElement("h2");
     dialogTitle.textContent = title;
-
+  
     const dialogMessage = document.createElement("p");
     dialogMessage.textContent = message;
-
+  
     const closeButton = document.createElement("button");
     closeButton.textContent = "Close";
     closeButton.onclick = () => {
-      document.body.removeChild(dialog);
+      body.removeChild(dialog);
     };
-
+  
     // Assemble dialog
     dialogContent.appendChild(dialogTitle);
     dialogContent.appendChild(dialogMessage);
     dialogContent.appendChild(closeButton);
     dialog.appendChild(dialogContent);
-
+  
     // Add dialog to body
-    document.body.appendChild(dialog);
-
+    body.appendChild(dialog);
+  
     // Force a reflow to ensure the dialog is rendered
     void dialog.offsetWidth;
-
+  
     // Add a class to trigger any CSS transitions
     dialog.classList.add("visible");
   },
@@ -1156,7 +1160,17 @@ class CaseProcessor {
     this.expungeabilityColumnId = `expungeability-column-${this.caseInfo.caseId}`;
     this.docketService = new DocketService();
     this.warrantStatus = null;  // Store warrant status
+    this.htmlContent = null;
   }
+
+  setHTMLContent(htmlContent) {
+    // console.log('Setting HTML content in processor');
+    this.htmlContent = htmlContent;
+    this.shouldUpdateUI = false;
+    this.caseInfo = utils.extractCaseInfo(htmlContent);
+    this.expungeabilityColumnId = `expungeability-column-${this.caseInfo.caseId}`;
+    this.docketService.setHTMLContext(htmlContent);
+}
 
   async collectCaseDetails() {
     let charges = await this.getCharges();
@@ -1311,8 +1325,12 @@ class CaseProcessor {
       override: existingOverride,
       overrideWarrant: existingOverrideWarrant
     });
+    
 
-    this.updateUI(caseDetails.charges, overallExpungeability.status, caseDetails.warrantStatus);
+    // Only update UI if triggered from case record page (not from search page)
+    if (this.shouldUpdateUI) {
+      this.updateUI(caseDetails.charges, overallExpungeability.status, caseDetails.warrantStatus);
+    }
 
     if (this.isExpungeabilityAdded()) {
       console.log(
@@ -1324,6 +1342,7 @@ class CaseProcessor {
   }
 
   async getCharges() {
+    const context = this.htmlContent || document;
     throw new Error("getCharges method must be implemented by subclasses");
   }
 
@@ -1349,6 +1368,10 @@ async getTypeSpecificFactors() {
 }
 
   updateUI(charges, overallExpungeabilityStatus) {
+    if (!this.shouldUpdateUI) {
+      return; // Skip UI updates when analyzing from HTML content
+    }
+
     throw new Error("updateUI method must be implemented by subclasses");
   }
 
@@ -1483,7 +1506,8 @@ class CPCCaseProcessor extends CaseProcessor {
   }
 
   getCPCChargesTable() {
-    return $("tbody")
+    const context = this.htmlContent || document;
+    return $(context).find("tbody")
       .filter(function () {
         return (
           $(this)
@@ -1666,10 +1690,11 @@ class CPCCaseProcessor extends CaseProcessor {
 // DTC Case Processor
 class DTCCaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const violations = [];
     let currentViolation = null;
 
-    $("table.iceDatTbl.data:contains('Violation'):contains('Disposition')")
+    $(context).find("table.iceDatTbl.data:contains('Violation'):contains('Disposition')")
       .eq(0)
       .find("tr")
       .each(function (index, row) {
@@ -1815,8 +1840,9 @@ class DTCCaseProcessor extends CaseProcessor {
 
 class DCWCaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const charges = [];
-    $("table.iceDatTbl.data:contains('COUNT:')").each((index, table) => {
+    $(context).find("table.iceDatTbl.data:contains('COUNT:')").each((index, table) => {
       const $table = $(table);
       let count = $table.find("th").text().trim().replace("COUNT:", "").trim();
       let $nextTable = $table.next("table");
@@ -1952,8 +1978,9 @@ class DCWCaseProcessor extends CaseProcessor {
 
 class PCCaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const charges = [];
-    $("table.iceDatTbl.data:contains('Offense Details')").each(
+    $(context).find("table.iceDatTbl.data:contains('Offense Details')").each(
       (index, table) => {
         const $rows = $(table).find("tr");
         $rows.each((rowIndex, row) => {
@@ -2085,8 +2112,9 @@ class PCCaseProcessor extends CaseProcessor {
 // FFC Case Processor
 class FFCCaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const charges = [];
-    $("table.iceDatTbl.data:contains('Offense Details')").each(
+    $(context).find("table.iceDatTbl.data:contains('Offense Details')").each(
       (index, table) => {
         const $rows = $(table).find("tr");
         $rows.each((rowIndex, row) => {
@@ -2153,14 +2181,6 @@ class FFCCaseProcessor extends CaseProcessor {
       );
     });
   }
-
-  // async getAdditionalFactors() {
-  //   const docket = await this.getPCDocket();
-  //   const withPrejudice = this.checkNolleProsequi(docket);
-  //   //console.log(`docket: ${JSON.stringify(docket)}`);
-  //   const deferredAcceptance = this.checkdeferredAcceptance(docket);
-  //   return { withPrejudice, deferredAcceptance };
-  // }
 
   async getTypeSpecificFactors() {
     const entries = await this.docketService.getDocketEntries();
@@ -2270,8 +2290,9 @@ class FFCCaseProcessor extends CaseProcessor {
 // DCC Case Processor
 class DCCCaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const charges = [];
-    $("table.iceDatTbl.data:contains('COUNT:')").each((index, table) => {
+    $(context).find("table.iceDatTbl.data:contains('COUNT:')").each((index, table) => {
       const $table = $(table);
       const count = $table
         .find("th")
@@ -2394,8 +2415,9 @@ class DCCCaseProcessor extends CaseProcessor {
 // DTA Case Processor
 class DTACaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const charges = [];
-    const violationsTable = $("table.iceDatTbl.data:contains('Violation')").eq(
+    const violationsTable = $(context).find("table.iceDatTbl.data:contains('Violation')").eq(
       0
     );
 
@@ -2610,8 +2632,9 @@ class DTACaseProcessor extends CaseProcessor {
 /// DTI Case Processor
 class DTICaseProcessor extends CaseProcessor {
   async getCharges() {
+    const context = this.htmlContent || document;
     const charges = [];
-    const violationsTable = $("table.iceDatTbl.data:contains('Violation')").eq(
+    const violationsTable = $(context).find("table.iceDatTbl.data:contains('Violation')").eq(
       0
     );
 
@@ -2745,23 +2768,26 @@ class CaseProcessorFactory {
     "AA - Adult Abuse": ["AA"]
   };
 
-  static handleInvalidCase(formElement, caseInfoElement) {
+  static handleInvalidCase(formElement, caseInfoElement, htmlContent = null) {
     const caseInfo = caseInfoElement.text() || "";
     
     if (formElement.action.includes("CaseSearch") && caseInfo.includes("Case ID:")) {
       utils.showDialog(
         "Unsupported Case Type",
-        "This case type is not currently supported."
+        "This case type is not currently supported.",
+        htmlContent
       );
     } else if (formElement.action.includes("CaseSearch") && caseInfo.includes("cases found")) {
       utils.showDialog(
         "Please Select a Case",
-        "Cannot check expungeability from the search results page. Please click on a case and try again."
+        "Cannot check expungeability from the search results page. Please click on a case and try again.",
+        htmlContent
       );
     } else {
       utils.showDialog(
         "Case Record Not Recognized",
-        "This page does not appear to be a case record."
+        "This page does not appear to be a case record.",
+        htmlContent
       );
     }
     window.__suppressErrorHandlerTwice = true;
@@ -2781,6 +2807,8 @@ class CaseProcessorFactory {
       window.__suppressErrorHandlerTwice = true;
       return null;
     }
+  
+    
 
     // Find matching processor type in PROCESSOR_MAP lookup table
     const matchingType = Object.keys(this.PROCESSOR_MAP).find(type => caseId.includes(type));
@@ -2805,6 +2833,56 @@ class CaseProcessorFactory {
     const caseInfoElement = $(".iceDatTbl,.data:first > tbody > tr > td").first();
     return this.handleInvalidCase(formElement, caseInfoElement);
   }
+
+  // Add to CaseProcessorFactory class
+  static createProcessorFromHTML(htmlContent) {
+    //console.log('Creating processor from HTML, content length:', htmlContent.length);
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+
+    // Extract case info from the HTML content
+    let caseId, caseTypeDescription;
+    try {
+        const caseInfoElement = $(tempDiv).find(".iceDatTbl,.data:first > tbody > tr > td").first();
+        if (!caseInfoElement.length) {
+            console.log('No case info element found in HTML');
+            return null;
+        }
+
+
+        const caseInfo = caseInfoElement.text();
+        caseId = caseInfo.slice(9, 24).trim().split(" ")[0];
+        caseTypeDescription = caseInfo.slice(caseInfo.indexOf("Type:") + 5).trim();
+
+        // Find matching processor type
+        const matchingType = Object.keys(this.PROCESSOR_MAP).find(type => caseId.includes(type));
+        if (matchingType) {
+          console.log('Found matching processor type:', matchingType);
+          const processor = new this.PROCESSOR_MAP[matchingType]();
+          processor.setHTMLContent(tempDiv); // Changed to pass tempDiv instead of original HTML
+          return processor;
+      }
+        
+        // Try again with case type description if no match found
+        const matchingDescription = Object.keys(this.DESCRIPTION_TYPE_MAP)
+            .find(description => caseTypeDescription.includes(description));
+        if (matchingDescription) {
+            const processorTypes = this.DESCRIPTION_TYPE_MAP[matchingDescription];
+            const processorType = processorTypes[0];
+            if (processorType in this.PROCESSOR_MAP) {
+                const processor = new this.PROCESSOR_MAP[processorType]();
+                processor.setHTMLContent(tempDiv);
+                return processor;
+            }
+        }
+    } catch (error) {
+        console.error("Error creating processor from HTML:", error);
+        return null;
+    }
+
+    return null;
+  }
 }
 
 /////////////////////////// Docket Analysis Service ///////////////////////////
@@ -2812,55 +2890,51 @@ class DocketService {
   constructor() {
     this.initialized = false;
     this.columnMap = {}; // Store column index for each type of data
+    this.htmlContext = null; // Add this
   }
 
-  // Core initialization and parsing
-  // async initialize() {
-  //   if (this.initialized) {
-  //     return;
-  //   }
+  // Add method to set HTML context
+  setHTMLContext(htmlContent) {
+    // console.log('Setting HTML context in DocketService');
+    this.htmlContent = htmlContent;
+}
 
-  //   this.docketTable = $("tbody")
-  //     .filter(function () {
-  //       return (
-  //         $(this)
-  //           .find("tr:first th")
-  //           .filter(function () {
-  //             return $(this).text().trim() === "Docket";
-  //           }).length > 0
-  //       );
-  //     })
-  //     .first();
-
-  //   if (!this.docketTable.length) {
-  //     throw new Error("Docket table not found");
-  //   }
-
-  //   this.initialized = true;
-  // }
-
-  // New initialize method mapping columns based on headers
-  async initialize() {
-    if (this.initialized) {
+async initialize() {
+  if (this.initialized) {
       return;
-    }
+  }
 
-    // Find table with a docket column header
-    this.docketTable = $("tbody")
-      .filter(function () {
-        return (
-          $(this)
-            .find("tr:first th")
-            .filter(function () {
-              return $(this).text().trim().toLowerCase().includes("docket");
-            }).length > 0
-        );
-      })
-      .first();
+  console.log('Initializing DocketService, HTML content exists:', !!this.htmlContent);
+  
+  const context = this.htmlContent ? $(this.htmlContent) : document;
+  
+  console.log('Looking for docket table in context');
+  // Look directly for a table containing "Docket"
+  const docketTable = $(context).find('table:contains("Docket")');
+  console.log('Found docket tables:', docketTable.length);
 
-    if (!this.docketTable.length) {
+  // Try old method if no tables found
+  if (!docketTable.length) {
+      this.docketTable = $(context).find("tbody")
+          .filter(function () {
+              return (
+                  $(this)
+                      .find("tr:first th")
+                      .filter(function () {
+                          return $(this).text().trim().toLowerCase().includes("docket");
+                      }).length > 0
+              );
+          })
+          .first();
+      console.log('Found docket table via tbody method:', !!this.docketTable.length);
+  } else {
+      this.docketTable = docketTable.first();
+  }
+
+  if (!this.docketTable.length) {
+      console.log('HTML content snippet:', $(context).html().substring(0, 500));
       throw new Error("Docket table not found");
-    }
+  }
 
     // Map column indices based on headers
     const headerRow = this.docketTable.find("tr:first th");
@@ -2893,6 +2967,7 @@ class DocketService {
 
   // Main method to get parsed docket entries
   async getDocketEntries() {
+    const context = this.htmlContent || document;
     await this.initialize();
     return this.parseDocketTable();
   }
@@ -2910,42 +2985,6 @@ class DocketService {
     console.log('Parsed docket entries: ', entries);
     return entries;
   }
-
-  // parseDocketRow(cells) {
-  //   if (!cells || cells.length < 5) {
-  //     return null;
-  //   }
-
-  //   const documentLinks = [];
-  //   $(cells[2])
-  //     .find("img")
-  //     .each((index, link) => {
-  //       const onclickAttr = $(link).attr("onclick");
-  //       const docMatch = onclickAttr.match(
-  //         /documentSelection\('([^']+)', '([^']+)'/
-  //       );
-  //       if (docMatch) {
-  //         documentLinks.push({
-  //           documentId: docMatch[1],
-  //           documentType: docMatch[2],
-  //           imageSource: $(link).attr("src"),
-  //         });
-  //       }
-  //     });
-
-  //   // console.log('Debugging docket entry: ', $(cells[0]).text().trim());
-  //   // console.log('Date cell: ', $(cells[1]).text().trim());
-  //   // console.log('Parsed date: ', new Date($(cells[1]).text().trim()));
-
-  //   return {
-  //     entryNumber: $(cells[0]).text().trim(),
-  //     date: new Date($(cells[1]).text().trim()),
-  //     docketText: $(cells[2]).html().replace(/<img[^>]*>/g, ''),
-  //     defendant: $(cells[3]).text().trim(), 
-  //     party: $(cells[4]).text().trim(),
-  //     documentLinks: documentLinks,
-  //   };
-  // }
 
   parseDocketRow(cells) {
     if (!cells) return null;
@@ -3026,7 +3065,11 @@ class DocketService {
     non_appearance: {
       pattern: /defendant not present|failed to appear|failure to appear/i,
       action: 'non-appearance'
-    }
+    }, 
+    // under_advisement: {
+    //   pattern: /under advisement/i,
+    //   action: 'under advisement'
+    // }
   };
 
   analyzeWarrantText(text) {
@@ -3076,6 +3119,9 @@ class DocketService {
         analysis.action += '; non-appearance';
       }
     }
+    // console.log('Warrant text:', text);
+    // console.log('Warrant analysis:', analysis);
+    // console.log('Warrant Type', analysis.type);
 
     return analysis;
   }
@@ -3137,9 +3183,17 @@ class DocketService {
     const latestNonAppearance = results.warrantEntries.find(entry => entry.warrantAction?.includes('non-appearance'));
     const latestWarrantType = results.warrantEntries.find(entry => entry.warrantType);
     
-    if (latestWarrantType) {
+    if (latestWarrant && latestWarrantType) {
       let latestWarrantTypePhrase = latestWarrant.warrantType
         results.latestWarrantType = this.warrantTypeToPhrase(latestWarrantTypePhrase);
+      // try {
+      //   let latestWarrantTypePhrase = latestWarrant.warrantType
+      //   results.latestWarrantType = this.warrantTypeToPhrase(latestWarrantTypePhrase);
+      // } catch (error) {
+      //   console.error('Error converting warrant type to phrase:', error);
+      //   console.log('Latest warrant:', latestWarrant);
+      //   console.log('Latest warrant type:', latestWarrantType);
+      // }
     }
 
     if (latestWarrant) {

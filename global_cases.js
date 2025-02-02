@@ -94,7 +94,8 @@ function saveToChromeLocalStorage(caseid, case_assessment, court_location, filin
             'DefendantName': defendant_name,
             'Override': override,
             'OverrideWarrant': overrideWarrant,
-            ...caseDetails
+            ...caseDetails,
+            'processingComplete': true
         };
 
         // Remove any cases with the same case number

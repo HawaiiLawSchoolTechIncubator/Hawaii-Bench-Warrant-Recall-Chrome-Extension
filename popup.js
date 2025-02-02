@@ -1,5 +1,132 @@
 let currentMode = "expungement"; // Default mode (can be 'expungement' or 'warrant') 
 
+
+/////////////////////// RETRIEVE AND ASSESS ALL FUNCTIONS ///////////////////////
+function retrieveRecord(caseID, action = 'log') {
+  // 1. Identify the form element and search page type
+  const form = document.forms["frm"];
+  const pageTitle = document.querySelector('.main-content-pagetitle').textContent;
+  console.log(`Search results type: ${pageTitle}`);
+
+  // 2. Set hidden fields
+  if (pageTitle === "Case Search Results") {
+      form["frm:j_idcl"].value = "frm:searchResultsTable:0:caseIdLink";
+  } else if (pageTitle === "Name Search") {
+      form["frm:j_idcl"].value = "frm:partyNameSearchResultsTableIntECC:0:caseIdLink";
+  }
+
+  form["caseID"].value = caseID;
+
+  // 3. Build a FormData object
+  const formData = new FormData(form);
+
+  // 4. Send the POST request
+  //    *** IMPORTANT: return the `fetch` promise here. ***
+  return fetch(form.action, {
+      method: "POST",
+      body: formData,
+      credentials: "include"
+  })
+  .then(response => response.text())
+  .then(responseText => {
+      if (action === 'log') {
+          console.log("Response from server:", responseText);
+          // Return the text anyway in case you want to use it
+          // after the fact
+          return responseText;
+      } else if (action === 'return') {
+          // Return the server's response as a string
+          return responseText;
+      } else {
+          console.error("Invalid action:", action);
+          return null; // or throw an error
+      }
+  })
+  .catch(error => {
+      console.error("Error:", error);
+      return null;  // return null so the promise resolves
+  })
+  .finally(() => {
+      // 5. Clear the hidden fields
+      form["frm:j_idcl"].value = "";
+      form["caseID"].value = "";
+  });
+}
+
+
+async function retrieveAllAndReturn() {
+  const results = [];
+  const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
+  
+  for (const link of caseIDLinks) {
+      const caseID = link.textContent.trim();
+
+      console.log(`Retrieving record for case ID: ${caseID}...`);
+      try {
+          const htmlResponse = await retrieveRecord(caseID, 'return');
+          results.push({
+              caseID,
+              html: htmlResponse
+          });
+          
+          // Add a small delay between requests
+          await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+          console.error(`Error retrieving case ${caseID}:`, error);
+      }
+  }
+  
+  return results;
+}async function retrieveAllAndReturn() {
+  const results = [];
+  const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
+  
+  for (const link of caseIDLinks) {
+      const caseID = link.textContent.trim();
+
+      console.log(`Retrieving record for case ID: ${caseID}...`);
+      try {
+          const htmlResponse = await retrieveRecord(caseID, 'return');
+          results.push({
+              caseID,
+              html: htmlResponse
+          });
+          
+          // Add a small delay between requests
+          await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+          console.error(`Error retrieving case ${caseID}:`, error);
+      }
+  }
+  
+  return results;
+}
+
+async function retrieveAllAndReturn() {
+  const results = [];
+  const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
+  
+  for (const link of caseIDLinks) {
+      const caseID = link.textContent.trim();
+
+      console.log(`Retrieving record for case ID: ${caseID}...`);
+      try {
+          const htmlResponse = await retrieveRecord(caseID, 'return');
+          results.push({
+              caseID,
+              html: htmlResponse
+          });
+          
+          // Add a small delay between requests (or not)
+          //await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+          console.error(`Error retrieving case ${caseID}:`, error);
+      }
+  }
+  
+  return results;
+}
+
 /////////////////////// Storage Functions ///////////////////////
 // Function to load mode from storage
 function loadMode() {
@@ -866,9 +993,13 @@ jQuery("#evaluate_case_button").click(function () {
 //Starts the Content Script to open cases from the search page
 jQuery("#overview_button").click(function () {
   console.log("overview_button Case Button Clicked");
-  chrome.runtime.sendMessage({ action: "overview_page" });
+  // Send message to active tab
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: "overview_page" });
+      }
+  });
 });
-
 
 //Empties Cases and Client from local Storage
 jQuery("#emptycases").click(function () {
@@ -1025,6 +1156,7 @@ async function displayCaseDetails(caseData) {
     "finalJudgment",
     "dismissedOnOralMotion",
     "dismissalDate",
+    "processingComplete"
   ];
 
   // Helper function to check if a value is blank
