@@ -557,9 +557,9 @@ function initTooltips() {
   }
 }
 
-
 // Keep overviewListener in global scope
 let overviewListener = null;
+let initialSetupComplete = false;
 
 function initializeOverviewPage() {
   if (!overviewListener) {
@@ -576,36 +576,71 @@ function initializeOverviewPage() {
     chrome.runtime.onMessage.addListener(overviewListener);
   }
 
-  let lastFirstCaseId = null;
+  // Function to update table after pagination
+  async function handlePaginationUpdate() {
+    overviewLog("Handling pagination update");
+    const table = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
+    if (!table) return;
 
-  const observer = new MutationObserver(async (mutations) => {
-    const casesTable = document.querySelector(
-      "#frm\\:partyNameSearchResultsTableIntECC"
-    );
+    // Get existing cases
+    const cases = await safeGetCases();
+    await processCaseTable(cases, false);
+  }
+
+  // Function to add click handlers to pagination controls
+  function setupPaginationHandlers() {
+    const table = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
+    if (!table) return;
+
+    // Common selector for all pagination elements
+    const paginationSelector = 'a[id*="results_page_scroller"]';
     
+    // Remove any existing handlers first
+    $(document).off('click.pagination', paginationSelector);
+
+    // Add new handler that triggers after ICEfaces completes its update
+    $(document).on('click.pagination', paginationSelector, function(e) {
+      // Use a small delay to ensure ICEfaces has completed its update
+      setTimeout(handlePaginationUpdate, 500);
+    });
+
+    overviewLog("Pagination handlers set up");
+  }
+
+  // Set up mutation observer to watch for initial table build
+  const tableObserver = new MutationObserver(async (mutations) => {
+    if (initialSetupComplete) return;
+
+    const casesTable = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
     if (!casesTable) return;
 
-    // Get the first case ID in the current table
-    const firstCaseLink = casesTable.querySelector('[id*="caseIdLink"]');
-    const currentFirstCaseId = firstCaseLink ? firstCaseLink.textContent.trim() : null;
+    const headerRow = casesTable.querySelector('thead tr');
+    if (!headerRow) return;
 
-    // Check if the table content has changed by comparing first case IDs
-    if (currentFirstCaseId && currentFirstCaseId !== lastFirstCaseId) {
-      overviewLog(`Table content changed. Previous first case: ${lastFirstCaseId}, Current first case: ${currentFirstCaseId}`);
-      lastFirstCaseId = currentFirstCaseId;
-      
+    const hasExpungement = Array.from(headerRow.cells).some(
+      cell => cell.textContent.trim() === "Expungement Assessment"
+    );
+    const hasWarrant = Array.from(headerRow.cells).some(
+      cell => cell.textContent.trim() === "Warrant Status"
+    );
+
+    // If our columns don't exist yet but the table is ready
+    if (!hasExpungement && !hasWarrant && casesTable.querySelector('tbody tr td')) {
       const cases = await safeGetCases();
       await processCaseTable(cases, false);
+      initialSetupComplete = true;
+      setupPaginationHandlers(); // Set up pagination handlers after initial build
     }
   });
 
-  // Observe both the entire document body for table addition/removal
-  // and the table itself for content changes when it exists
-  observer.observe(document.body, {
+  // Watch for table changes
+  tableObserver.observe(document.body, {
     childList: true,
-    subtree: true,
-    characterData: true
+    subtree: true
   });
+
+  // Set up pagination handlers initially (in case table is already present)
+  setupPaginationHandlers();
 }
 
 // Initialize everything when the script loads
@@ -614,3 +649,140 @@ if (document.readyState === "loading") {
 } else {
   initializeOverviewPage();
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+// // Keep overviewListener in global scope
+// let overviewListener = null;
+
+// function initializeOverviewPage() {
+//   if (!overviewListener) {
+//     chrome.runtime.onMessage.removeListener(overviewListener);
+//     overviewListener = (message, sender, sendResponse) => {
+//       if (
+//         message.action === "overview_page" &&
+//         document.querySelector("#frm\\:partyNameSearchResultsTableIntECC")
+//       ) {
+//         overviewLog("Received overview_page action");
+//         processCases();
+//       }
+//     };
+//     chrome.runtime.onMessage.addListener(overviewListener);
+//   }
+
+//   // Function to update table after pagination
+//   async function handlePaginationUpdate() {
+//     overviewLog("Handling pagination update");
+//     const table = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
+//     if (!table) return;
+
+//     // Get existing cases
+//     const cases = await safeGetCases();
+//     await processCaseTable(cases, false);
+//   }
+
+//   // Function to add click handlers to pagination controls
+//   function setupPaginationHandlers() {
+//     const table = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
+//     if (!table) return;
+
+//     // Common selector for all pagination elements
+//     const paginationSelector = 'a[id*="results_page_scroller"]';
+    
+//     // Remove any existing handlers first
+//     $(document).off('click.pagination', paginationSelector);
+
+//     // Add new handler that triggers after ICEfaces completes its update
+//     $(document).on('click.pagination', paginationSelector, function(e) {
+//       // Use a small delay to ensure ICEfaces has completed its update
+//       setTimeout(handlePaginationUpdate, 500);
+//     });
+
+//     overviewLog("Pagination handlers set up");
+//   }
+
+//   // Set up mutation observer to watch for table changes
+//   const observer = new MutationObserver((mutations) => {
+//     const tableChanged = mutations.some(mutation => {
+//       return mutation.target.id === "frm:partyNameSearchResultsTableIntECC" ||
+//              mutation.target.closest("#frm\\:partyNameSearchResultsTableIntECC");
+//     });
+
+//     if (tableChanged) {
+//       // Re-setup pagination handlers whenever the table changes
+//       setupPaginationHandlers();
+//     }
+//   });
+
+//   observer.observe(document.body, {
+//     childList: true,
+//     subtree: true
+//   });
+
+//   // Initial setup
+//   setupPaginationHandlers();
+// }
+
+// // Initialize everything when the script loads
+// if (document.readyState === "loading") {
+//   document.addEventListener("DOMContentLoaded", initializeOverviewPage);
+// } else {
+//   initializeOverviewPage();
+// }
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// // Keep overviewListener in global scope
+// let overviewListener = null;
+
+// function initializeOverviewPage() {
+//   if (!overviewListener) {
+//     chrome.runtime.onMessage.removeListener(overviewListener);
+//     overviewListener = (message, sender, sendResponse) => {
+//       if (
+//         message.action === "overview_page" &&
+//         document.querySelector("#frm\\:partyNameSearchResultsTableIntECC")
+//       ) {
+//         overviewLog("Received overview_page action");
+//         processCases();
+//       }
+//     };
+//     chrome.runtime.onMessage.addListener(overviewListener);
+//   }
+
+//   let lastFirstCaseId = null;
+
+//   const observer = new MutationObserver(async (mutations) => {
+//     const casesTable = document.querySelector(
+//       "#frm\\:partyNameSearchResultsTableIntECC"
+//     );
+    
+//     if (!casesTable) return;
+
+//     // Get the first case ID in the current table
+//     const firstCaseLink = casesTable.querySelector('[id*="caseIdLink"]');
+//     const currentFirstCaseId = firstCaseLink ? firstCaseLink.textContent.trim() : null;
+
+//     // Check if the table content has changed by comparing first case IDs
+//     if (currentFirstCaseId && currentFirstCaseId !== lastFirstCaseId) {
+//       overviewLog(`Table content changed. Previous first case: ${lastFirstCaseId}, Current first case: ${currentFirstCaseId}`);
+//       lastFirstCaseId = currentFirstCaseId;
+      
+//       const cases = await safeGetCases();
+//       await processCaseTable(cases, false);
+//     }
+//   });
+
+//   // Observe both the entire document body for table addition/removal
+//   // and the table itself for content changes when it exists
+//   observer.observe(document.body, {
+//     childList: true,
+//     subtree: true,
+//     characterData: true
+//   });
+// }
+
+// // Initialize everything when the script loads
+// if (document.readyState === "loading") {
+//   document.addEventListener("DOMContentLoaded", initializeOverviewPage);
+// } else {
+//   initializeOverviewPage();
+// }
