@@ -1161,6 +1161,7 @@ class CaseProcessor {
     this.docketService = new DocketService();
     this.warrantStatus = null;  // Store warrant status
     this.htmlContent = null;
+    this.shouldUpdateUI = true;
   }
 
   setHTMLContent(htmlContent) {

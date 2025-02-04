@@ -5,11 +5,25 @@ function retrieveRecord(caseID, action = 'log') {
     const pageTitle = document.querySelector('.main-content-pagetitle').textContent;
     console.log(`Search results type: ${pageTitle}`);
 
-    // 2. Set hidden fields
+    // 2. Find the link element for this case to get its correct index
+    const caseLink = [...document.querySelectorAll('[id*="caseIdLink"]')].find(
+        link => link.textContent.trim() === caseID
+    );
+
+    if (!caseLink) {
+        console.error(`Could not find link element for case ${caseID}`);
+        return Promise.reject(new Error(`Case link not found for ${caseID}`));
+    }
+
+    // Extract the index from the link ID (format is "frm:partyNameSearchResultsTableIntECC:XX:caseIdLink")
+    const linkIndex = caseLink.id.split(':')[2];
+    console.log(`Using index ${linkIndex} for case ${caseID}`);
+
+    // 3. Set hidden fields using the correct index
     if (pageTitle === "Case Search Results") {
-        form["frm:j_idcl"].value = "frm:searchResultsTable:0:caseIdLink";
+        form["frm:j_idcl"].value = `frm:searchResultsTable:${linkIndex}:caseIdLink`;
     } else if (pageTitle === "Name Search") {
-        form["frm:j_idcl"].value = "frm:partyNameSearchResultsTableIntECC:0:caseIdLink";
+        form["frm:j_idcl"].value = `frm:partyNameSearchResultsTableIntECC:${linkIndex}:caseIdLink`;
     }
 
     form["caseID"].value = caseID;

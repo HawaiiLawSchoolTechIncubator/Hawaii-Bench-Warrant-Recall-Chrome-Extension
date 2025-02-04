@@ -68,27 +68,34 @@ function appendExistingCaseStatus($cell, status, explanation) {
       bgColor = "orange";
   }
 
-  // Only modify the cell's properties, not its structure
-  $cell
-    .css("background-color", bgColor)
-    .text(status || "")
-    .attr("data-bs-toggle", "tooltip")
-    .attr("data-bs-placement", "top")
-    .attr("title", explanation || "No explanation available");
+  // Update the span inside the cell instead of the cell directly
+  const $span = $cell.find('.iceOutTxt');
+  if (!$span.length) {
+    $cell.html('<span class="iceOutTxt"></span>');
+  }
+  
+  $cell.css("background-color", bgColor)
+       .attr("data-bs-toggle", "tooltip")
+       .attr("data-bs-placement", "top")
+       .attr("title", explanation || "No explanation available");
+  
+  $cell.find('.iceOutTxt').text(status || "");
 }
 
 function appendWarrantStatus($cell, warrantStatus) {
   let bgColor, text, tooltip;
   let noWarrantTooltip;
-  
+
   if (!warrantStatus || warrantStatus.warrantEntries.length === 0) {
     bgColor = "lightgreen";
     text = "No Warrant Found";
     noWarrantTooltip = "Found no mention of warrants in case details";
   } else if (warrantStatus.hasOutstandingWarrant) {
     bgColor = "lightcoral";
-    text = warrantStatus.latestWarrantType === "penal summons" ? 
-           "Outstanding Summons" : "Outstanding Warrant";
+    text =
+      warrantStatus.latestWarrantType === "penal summons"
+        ? "Outstanding Summons"
+        : "Outstanding Warrant";
   } else if (warrantStatus.warrantEntries?.length > 0) {
     bgColor = "lightgreen";
     text = "No Outstanding Warrant";
@@ -97,7 +104,10 @@ function appendWarrantStatus($cell, warrantStatus) {
     text = "";
   }
 
-  tooltip = warrantStatus?.explanation || noWarrantTooltip || "No explanation available";
+  tooltip =
+    warrantStatus?.explanation ||
+    noWarrantTooltip ||
+    "No explanation available";
 
   $cell
     .css("background-color", bgColor)
@@ -139,7 +149,7 @@ async function processCases() {
 }
 
 // Process case table
-async function processCaseTable(existingCases) {
+async function processCaseTable(existingCases, retrieveNewCases = true) {
   overviewLog("Starting processCaseTable");
   const casesTable = $("#frm\\:partyNameSearchResultsTableIntECC");
   if (!casesTable.length) {
@@ -152,7 +162,9 @@ async function processCaseTable(existingCases) {
   const caseRowMap = new Map();
 
   // Load eCourtCodes early as they're needed for case type checking
-  const eCourtCodes = await fetch(chrome.runtime.getURL("ecourt_kokua_codes.json"))
+  const eCourtCodes = await fetch(
+    chrome.runtime.getURL("ecourt_kokua_codes.json")
+  )
     .then((response) => response.json())
     .catch((error) => {
       overviewLog("Error loading court codes:", error);
@@ -161,19 +173,19 @@ async function processCaseTable(existingCases) {
 
   // Set up column indices
   const headerRow = casesTable.find("thead tr").first();
-  
+
   // Find case type column first since we need it for checking case eligibility
   const caseTypeColumnIndex = headerRow
     .find("th")
     .toArray()
     .findIndex((th) => $(th).text().trim() === "Case Type");
-  
+
   // Find or create assessment columns
   let expungementColumnIndex = headerRow
     .find("th")
     .toArray()
     .findIndex((th) => $(th).text().trim() === "Expungement Assessment");
-    
+
   let warrantColumnIndex = headerRow
     .find("th")
     .toArray()
@@ -182,82 +194,117 @@ async function processCaseTable(existingCases) {
   // Add columns if needed
   let columnsAppended = 0;
   if (expungementColumnIndex === -1) {
-    headerRow.append($("<th/>", {
-      text: "Expungement Assessment",
-      class: "iceDatTblColHdr2 dataColHdr2 dataHdr",
-      scope: "col",
-      id: "expungement-status-header"
-    }));
+    headerRow.append(
+      $("<th/>", {
+        text: "Expungement Assessment",
+        class: "iceDatTblColHdr2 dataColHdr2 dataHdr",
+        scope: "col",
+        id: "expungement-status-header",
+      })
+    );
     expungementColumnIndex = headerRow.find("th").length - 1;
     columnsAppended += 1;
   }
 
   if (warrantColumnIndex === -1) {
-    headerRow.append($("<th/>", {
-      text: "Warrant Status",
-      class: "iceDatTblColHdr2 dataColHdr2 dataHdr",
-      scope: "col",
-      id: "warrant-status-header"
-    }));
+    headerRow.append(
+      $("<th/>", {
+        text: "Warrant Status",
+        class: "iceDatTblColHdr2 dataColHdr2 dataHdr",
+        scope: "col",
+        id: "warrant-status-header",
+      })
+    );
     warrantColumnIndex = headerRow.find("th").length - 1;
     columnsAppended += 1;
   }
 
-  casesTable.find("tbody tr").each(function() {
+  casesTable.find("tbody tr").each(function () {
     const $row = $(this);
     const $caseLink = $row.find('[id*="caseIdLink"]');
-    
+    const parentTdText = $caseLink.parent().text();
+    const redacted = parentTdText.includes("Redacted"); // Redacted cases not available
+
     // Skip rows without case links (e.g., button row at the end)
     if ($caseLink.length) {
       const caseNumber = $caseLink.text().trim();
 
       // Get case type from the correct column index
-      const caseType = caseTypeColumnIndex >= 0 ? 
-      $row.find(`td:eq(${caseTypeColumnIndex})`).text().trim() : null;
+      const caseType =
+        caseTypeColumnIndex >= 0
+          ? $row.find(`td:eq(${caseTypeColumnIndex})`).text().trim()
+          : null;
 
       console.log(`Processing case ${caseNumber} with type ${caseType}`);
-      
+
       // Add or get expungement cell
       let $expungementCell = $row.find(`td:eq(${expungementColumnIndex})`);
       if (!$expungementCell.length) {
         $row.append($("<td/>", { class: "expungement-status-cell" }));
         $expungementCell = $row.find("td:last");
       }
-    
-      // Add or get warrant cell  
+
+      // Add or get warrant cell
       let $warrantCell = $row.find(`td:eq(${warrantColumnIndex})`);
       if (!$warrantCell.length) {
         $row.append($("<td/>", { class: "warrant-status-cell" }));
         $warrantCell = $row.find("td:last");
       }
-    
-      const existingCase = existingCases.find(c => c.CaseNumber === caseNumber);
+
+      const existingCase = existingCases.find(
+        (c) => c.CaseNumber === caseNumber
+      );
       if (existingCase) {
         // Update expungement status
         appendExistingCaseStatus(
-          $expungementCell, 
+          $expungementCell,
           existingCase.Expungeable,
           existingCase.overallExpungeability?.explanation
         );
-        
+
         // Update warrant status
-        appendWarrantStatus(
-          $warrantCell,
-          existingCase.warrantStatus
-        );
-      } else if (isCaseTypeCheckable(caseNumber, caseType, eCourtCodes)) {
+        appendWarrantStatus($warrantCell, existingCase.warrantStatus);
+      } else if (
+        isCaseTypeCheckable(caseNumber, caseType, eCourtCodes, redacted)
+      ) {
         casesToRetrieve.push(caseNumber);
         caseRowMap.set(caseNumber, $row);
-        $expungementCell.css("background-color", "lemonchiffon").text("Retrieving...");
-        $warrantCell.css("background-color", "lemonchiffon").text("Retrieving...");
+        if (retrieveNewCases) {
+          $expungementCell
+            .css("background-color", "lemonchiffon")
+            .text("Retrieving...");
+          $warrantCell
+            .css("background-color", "lemonchiffon")
+            .text("Retrieving...");
+        } else {
+          $expungementCell
+            .css("background-color", "lightgray")
+            .text("Need to check")
+            .attr("title", "Click 'Check Overview Page' to evaluate");
+          $warrantCell
+            .css("background-color", "lightgray")
+            .text("Need to check")
+            .attr("title", "Click 'Check Overview Page' to evaluate");
+        }
+      } else if (redacted) {
+        $expungementCell
+          .css("background-color", "#f8d7da")
+          .text("Cannot check redacted cases");
+        $warrantCell
+          .css("background-color", "#f8d7da")
+          .text("Cannot check redacted cases");
       } else {
-        $expungementCell.css("background-color", "#f8d7da").text(`Cannot check ${caseType}`);
-        $warrantCell.css("background-color", "#f8d7da").text(`Cannot check ${caseType}`);
+        $expungementCell
+          .css("background-color", "#f8d7da")
+          .text(`Cannot check ${caseType}`);
+        $warrantCell
+          .css("background-color", "#f8d7da")
+          .text(`Cannot check ${caseType}`);
       }
     }
   });
 
-  casesTable.find("tfoot tr td").each(function() {
+  casesTable.find("tfoot tr td").each(function () {
     const $cell = $(this);
     const oldSpan = parseInt($cell.attr("colspan"), 10);
     if (oldSpan && columnsAppended > 0) {
@@ -265,95 +312,114 @@ async function processCaseTable(existingCases) {
     }
   });
 
+  // Called to populate existing cases only
+  if(!retrieveNewCases) {
+    return;
+  }
+
+
   // Event handler for processing cases
   const caseProcessedHandler = async (event) => {
-  const result = event.detail;
-  console.log(`Processing case ${result.caseID}`);
-  const $row = caseRowMap.get(result.caseID);
-  if (!$row) return;
+    const result = event.detail;
+    console.log(`Processing case ${result.caseID}`);
+    const $row = caseRowMap.get(result.caseID);
+    if (!$row) return;
 
-  // Get both status cells using column indices
-  const $expungementCell = $row.find(`td:eq(${expungementColumnIndex})`);
-  const $warrantCell = $row.find(`td:eq(${warrantColumnIndex})`);
-  if (!$expungementCell.length && !$warrantCell.length) return;
+    // Get both status cells using column indices
+    const $expungementCell = $row.find(`td:eq(${expungementColumnIndex})`);
+    const $warrantCell = $row.find(`td:eq(${warrantColumnIndex})`);
+    if (!$expungementCell.length && !$warrantCell.length) return;
 
-  try {
-    if (!result.html) {
-      throw new Error("No HTML content received");
-    }
-    console.log(`HTML content length for case ${result.caseID}:`, result.html.length);
+    try {
+      if (!result.html) {
+        throw new Error("No HTML content received");
+      }
+      console.log(
+        `HTML content length for case ${result.caseID}:`,
+        result.html.length
+      );
+      //console.log(result.html)
 
-    const processor = CaseProcessorFactory.createProcessorFromHTML(result.html);
-    if (!processor) {
-      throw new Error("Could not create case processor");
-    }
-    console.log(`Created processor for case ${result.caseID}`);
+      const processor = CaseProcessorFactory.createProcessorFromHTML(
+        result.html
+      );
+      if (!processor) {
+        throw new Error("Could not create case processor");
+      }
+      console.log(`Created processor for case ${result.caseID}`);
 
-    // Process case and log results
-    await processor.process();
-    console.log(`Completed initial processing for case ${result.caseID}`);
-    
-    const storageConfirmed = new Promise((resolve) => {
-      const checkStorage = async (attempts = 0) => {
-        if (attempts > 10) {
-            console.warn(`Storage confirmation timed out for case ${result.caseID}`);
+      // Process case and log results
+      await processor.process();
+      console.log(`Completed initial processing for case ${result.caseID}`);
+
+      const storageConfirmed = new Promise((resolve) => {
+        const checkStorage = async (attempts = 0) => {
+          if (attempts > 10) {
+            console.warn(
+              `Storage confirmation timed out for case ${result.caseID}`
+            );
             resolve(false);
             return;
-        }
-    
-        const cases = await safeGetCases();
-        const storedCase = cases.find(c => c.CaseNumber === result.caseID);
-        
-        console.log(`Checking storage for case ${result.caseID} (attempt ${attempts + 1})`);
-        if (storedCase?.charges.length > 0) {  // Check for completed processing
+          }
+
+          const cases = await safeGetCases();
+          const storedCase = cases.find((c) => c.CaseNumber === result.caseID);
+
+          console.log(
+            `Checking storage for case ${result.caseID} (attempt ${
+              attempts + 1
+            })`
+          );
+          if (storedCase?.charges.length > 0) {
+            // Check for completed processing
             console.log(`Charges found for case ${result.caseID}`);
             console.log(`Charges length: ${storedCase.charges.length}`);
-            console.log(storedCase.charges)
+            console.log(storedCase.charges);
             resolve(true);
-        } else {
+          } else {
             console.log(`Charges not yet found for case ${result.caseID}`);
             setTimeout(() => checkStorage(attempts + 1), 100);
-        }
-    };
-      
-      checkStorage();
-    });
+          }
+        };
 
-    const isStored = await storageConfirmed;
-    console.log(`Storage confirmed for case ${result.caseID}:`, isStored);
-    
-    if (isStored) {
-      const cases = await safeGetCases();
-      const processedCase = cases.find(c => c.CaseNumber === result.caseID);
-      
-      if (processedCase) {
-        console.log(`Final status for case ${result.caseID}:`, processedCase.Expungeable);
-        appendExistingCaseStatus(
-          $expungementCell,
-          processedCase.Expungeable,
-          processedCase.overallExpungeability?.explanation
-        );
-        
-        appendWarrantStatus(
-          $warrantCell,
-          processedCase.warrantStatus
-        );
+        checkStorage();
+      });
+
+      const isStored = await storageConfirmed;
+      console.log(`Storage confirmed for case ${result.caseID}:`, isStored);
+
+      if (isStored) {
+        const cases = await safeGetCases();
+        const processedCase = cases.find((c) => c.CaseNumber === result.caseID);
+
+        if (processedCase) {
+          console.log(
+            `Final status for case ${result.caseID}:`,
+            processedCase.Expungeable
+          );
+          appendExistingCaseStatus(
+            $expungementCell,
+            processedCase.Expungeable,
+            processedCase.overallExpungeability?.explanation
+          );
+
+          appendWarrantStatus($warrantCell, processedCase.warrantStatus);
+        }
+      } else {
+        throw new Error("Failed to confirm case storage");
       }
-    } else {
-      throw new Error("Failed to confirm case storage");
+    } catch (error) {
+      console.error(`Error processing case ${result.caseID}:`, error);
+      $expungementCell
+        .css("background-color", "pink")
+        .text("Processing failed")
+        .attr("title", error.message);
+      $warrantCell
+        .css("background-color", "pink")
+        .text("Processing failed")
+        .attr("title", error.message);
     }
-  } catch (error) {
-    console.error(`Error processing case ${result.caseID}:`, error);
-    $expungementCell
-      .css("background-color", "pink")
-      .text("Processing failed")
-      .attr("title", error.message);
-    $warrantCell
-      .css("background-color", "pink")
-      .text("Processing failed")
-      .attr("title", error.message);
-  }
-};
+  };
 
   document.addEventListener("caseProcessed", caseProcessedHandler);
 
@@ -368,14 +434,14 @@ async function processCaseTable(existingCases) {
         if ($row) {
           const $expungementCell = $row.find("td.expungement-status-cell");
           const $warrantCell = $row.find("td.warrant-status-cell");
-          
+
           if ($expungementCell.length) {
             $expungementCell
               .css("background-color", "pink")
               .text("Retrieval failed")
               .attr("title", "Error retrieving case data");
           }
-          
+
           if ($warrantCell.length) {
             $warrantCell
               .css("background-color", "pink")
@@ -393,9 +459,22 @@ async function processCaseTable(existingCases) {
 }
 
 // Use case and court codes to determine if case type can be checked
-function isCaseTypeCheckable(caseNumber, caseType, eCourtCodes) {
+function isCaseTypeCheckable(caseNumber, caseType, eCourtCodes, redacted) {
+  // Checks both prefix and case type string because sometimes they disagree.
+  // (Due to data entry error?)
+  // Currently: prioritizes case type string result
+
+  // Redacted cases cannot be checked
+  if (redacted) {
+    return false;
+  }
+
   //console.log("Inside isCaseTypeCheckable");
   const canHandleType = ["PC", "CC", "TC", "CW", "TA", "FC", "TI"];
+  let prefixTypeCheckable = false; // Whether prefix indicates case is checkable
+  // E.g., "1DTI-..." checkable b/c "TI"
+  let caseTypeStringCheckable = false; // Whether string in Case Type column corresponds
+  // to a checkable prefix
 
   if (caseNumber) {
     //console.log("Case number and case type exist");
@@ -407,7 +486,8 @@ function isCaseTypeCheckable(caseNumber, caseType, eCourtCodes) {
     //console.log("caseNumberPrefix", caseNumberPrefix);
     if (canHandleType.includes(caseNumberPrefix)) {
       //console.log("caseNumberPrefix is in canHandleType");
-      return true;
+      prefixTypecheckable = true;
+      //return true;
     }
     //console.log("caseNumberPrefix is not in canHandleType");
   }
@@ -434,10 +514,12 @@ function isCaseTypeCheckable(caseNumber, caseType, eCourtCodes) {
     //console.log("caseType", caseType);
     //console.log("prefix", prefix);
     if (prefix) {
-      return canHandleType.includes(prefix);
+      caseTypeStringCheckable = canHandleType.includes(prefix);
+      //return canHandleType.includes(prefix);
     }
+    return caseTypeStringCheckable;
   }
-  return false;
+  return prefixTypeCheckable; // Return prefix result if only prefix available
 }
 
 // Parse name line
@@ -475,17 +557,18 @@ function initTooltips() {
   }
 }
 
+
 // Keep overviewListener in global scope
 let overviewListener = null;
 
 function initializeOverviewPage() {
-  // Set up overview listener
   if (!overviewListener) {
-    chrome.runtime.onMessage.removeListener(overviewListener);  // Clean up any existing
-    
+    chrome.runtime.onMessage.removeListener(overviewListener);
     overviewListener = (message, sender, sendResponse) => {
-      if (message.action === "overview_page" && 
-          document.querySelector("#frm\\:partyNameSearchResultsTableIntECC")) {
+      if (
+        message.action === "overview_page" &&
+        document.querySelector("#frm\\:partyNameSearchResultsTableIntECC")
+      ) {
         overviewLog("Received overview_page action");
         processCases();
       }
@@ -493,155 +576,35 @@ function initializeOverviewPage() {
     chrome.runtime.onMessage.addListener(overviewListener);
   }
 
-  // Initialize table observer
-  // const observer = new MutationObserver(async (mutations, observer) => {
-  //   const casesTable = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
-  //   if (casesTable) {
-  //     observer.disconnect();  // Stop observing once we find the table
-      
-  //     // Get existing cases and update table without retrieving new ones
-  //     const existingCases = await safeGetCases();
-  //     if (existingCases.length > 0) {
-  //       overviewLog("Table loaded, displaying existing cases");
-  //       await processCaseTable(existingCases);
-  //     }
-  //   }
-  // });
-  // Initialize table observer
-const observer = new MutationObserver(async (mutations, observer) => {
-  const casesTable = document.querySelector("#frm\\:partyNameSearchResultsTableIntECC");
-  if (casesTable) {
-    observer.disconnect();  // Stop observing once we find the table
+  let lastFirstCaseId = null;
 
-    // Get header row and add columns if needed
-    const $table = $(casesTable);
-    const headerRow = $table.find("thead tr").first();
+  const observer = new MutationObserver(async (mutations) => {
+    const casesTable = document.querySelector(
+      "#frm\\:partyNameSearchResultsTableIntECC"
+    );
     
-    // Find case type column first since we need it for checking case eligibility
-    const caseTypeColumnIndex = headerRow
-      .find("th")
-      .toArray()
-      .findIndex((th) => $(th).text().trim() === "Case Type");
-    
-    // Add assessment columns if they don't exist
-    let expungementColumnIndex = headerRow
-      .find("th")
-      .toArray()
-      .findIndex((th) => $(th).text().trim() === "Expungement Assessment");
+    if (!casesTable) return;
+
+    // Get the first case ID in the current table
+    const firstCaseLink = casesTable.querySelector('[id*="caseIdLink"]');
+    const currentFirstCaseId = firstCaseLink ? firstCaseLink.textContent.trim() : null;
+
+    // Check if the table content has changed by comparing first case IDs
+    if (currentFirstCaseId && currentFirstCaseId !== lastFirstCaseId) {
+      overviewLog(`Table content changed. Previous first case: ${lastFirstCaseId}, Current first case: ${currentFirstCaseId}`);
+      lastFirstCaseId = currentFirstCaseId;
       
-    let warrantColumnIndex = headerRow
-      .find("th")
-      .toArray()
-      .findIndex((th) => $(th).text().trim() === "Warrant Status");
-
-    if (expungementColumnIndex === -1) {
-      headerRow.append($("<th/>", {
-        text: "Expungement Assessment",
-        class: "iceDatTblColHdr2 dataColHdr2 dataHdr",
-        scope: "col",
-        id: "expungement-status-header"
-      }));
-      expungementColumnIndex = headerRow.find("th").length - 1;
+      const cases = await safeGetCases();
+      await processCaseTable(cases, false);
     }
+  });
 
-    if (warrantColumnIndex === -1) {
-      headerRow.append($("<th/>", {
-        text: "Warrant Status",
-        class: "iceDatTblColHdr2 dataColHdr2 dataHdr",
-        scope: "col",
-        id: "warrant-status-header"
-      }));
-      warrantColumnIndex = headerRow.find("th").length - 1;
-    }
-
-    // Load court codes for case type checking
-    const eCourtCodes = await fetch(chrome.runtime.getURL("ecourt_kokua_codes.json"))
-      .then((response) => response.json())
-      .catch((error) => {
-        overviewLog("Error loading court codes:", error);
-        return {};
-      });
-
-    // Get existing cases
-    const existingCases = await safeGetCases();
-
-    // Process each row
-    $table.find("tbody tr").each(function() {
-      const $row = $(this);
-      const $caseLink = $row.find('[id*="caseIdLink"]');
-      
-      if ($caseLink.length) {
-        const caseNumber = $caseLink.text().trim();
-        const caseType = caseTypeColumnIndex >= 0 ? 
-          $row.find(`td:eq(${caseTypeColumnIndex})`).text().trim() : null;
-
-        // Add or get cells
-        let $expungementCell = $row.find(`td:eq(${expungementColumnIndex})`);
-        if (!$expungementCell.length) {
-          $row.append($("<td/>", { class: "expungement-status-cell" }));
-          $expungementCell = $row.find("td:last");
-        }
-
-        let $warrantCell = $row.find(`td:eq(${warrantColumnIndex})`);
-        if (!$warrantCell.length) {
-          $row.append($("<td/>", { class: "warrant-status-cell" }));
-          $warrantCell = $row.find("td:last");
-        }
-
-        const existingCase = existingCases.find(c => c.CaseNumber === caseNumber);
-        if (existingCase) {
-          // Show existing data
-          appendExistingCaseStatus(
-            $expungementCell,
-            existingCase.Expungeable,
-            existingCase.overallExpungeability?.explanation
-          );
-          
-          appendWarrantStatus(
-            $warrantCell,
-            existingCase.warrantStatus
-          );
-        } else if (isCaseTypeCheckable(caseNumber, caseType, eCourtCodes)) {
-          // Can check but haven't yet
-          $expungementCell
-            .css("background-color", "lightgray")
-            .text("Need to check")
-            .attr("title", "Click 'Check Overview Page' to evaluate");
-          $warrantCell
-            .css("background-color", "lightgray")
-            .text("Need to check")
-            .attr("title", "Click 'Check Overview Page' to evaluate");
-        } else {
-          // Cannot check this case type
-          $expungementCell
-            .css("background-color", "#f8d7da")
-            .text(`Cannot check ${caseType}`)
-            .attr("title", "This case type is not supported");
-          $warrantCell
-            .css("background-color", "#f8d7da")
-            .text(`Cannot check ${caseType}`)
-            .attr("title", "This case type is not supported");
-        }
-      }
-    });
-
-    // Update footer colspan
-    $table.find("tfoot tr td").each(function() {
-      const $cell = $(this);
-      const oldSpan = parseInt($cell.attr("colspan"), 10);
-      if (oldSpan) {
-        const newColumns = (expungementColumnIndex === -1 ? 1 : 0) + 
-                          (warrantColumnIndex === -1 ? 1 : 0);
-        $cell.attr("colspan", oldSpan + newColumns);
-      }
-    });
-  }
-});
-
-  // Start observing
+  // Observe both the entire document body for table addition/removal
+  // and the table itself for content changes when it exists
   observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
+    characterData: true
   });
 }
 
