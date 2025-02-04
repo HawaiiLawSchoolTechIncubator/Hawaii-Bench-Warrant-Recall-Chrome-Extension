@@ -3235,16 +3235,16 @@ async initialize() {
         return;
     }
 
-    // Get all executions and recalls
+    // Get all executions, recalls, and services
     const terminatingActions = results.warrantEntries.filter(entry => 
-      entry.warrantAction?.includes('recall') || entry.warrantAction?.includes('execution')
+      entry.warrantAction?.includes('recall') || entry.warrantAction?.includes('execution') || entry.warrantAction?.includes('serv')
     );
 
     // Find the most recent warrant issuance
     const latestWarrant = results.warrantEntries.find(entry => entry.warrantAction?.includes('issue'));
     
     if (!latestWarrant) {
-        // No warrant issuance found, but check if there are execution/recall entries
+        // No warrant issuance found, but check if there are execution/recall/service entries
         if (terminatingActions.length > 0) {
             // Sort by date to get the most recent
             terminatingActions.sort((a, b) => b.date - a.date);
@@ -3264,7 +3264,7 @@ async initialize() {
         return;
     }
 
-    // Check for any recall or execution after the latest issuance
+    // Check for any recall/execution/service after the latest issuance
     const subsequentActions = terminatingActions.filter(entry => 
         entry.date > latestWarrant.date
     );
