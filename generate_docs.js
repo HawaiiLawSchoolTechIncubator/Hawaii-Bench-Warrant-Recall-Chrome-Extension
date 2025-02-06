@@ -91,17 +91,17 @@ const DocumentGenerator = (function () {
     ////////////////////////// Optional Paragraph Patterns //////////////////////////
     static OPTIONAL_PARAGRAPH_PATTERNS = {
       expungement: {
-        alternateAddressLine3: {
+        dddressLine3: {
           placeholder: "ξ",
           pattern: /<w:p w14:paraId="20DEE2BC".*?ξ<\/w:t><\/w:r><\/w:p>/,
           emptyReplacement: "", // Removing entire paragraph when empty
         },
-        alternatePhone: {
+        phone: {
           placeholder: "φ",
           pattern: /<w:p w14:paraId="32400D1D".*?φ<\/w:t><\/w:r><\/w:p>/,
           emptyReplacement: "",
         },
-        alternateEmail: {
+        email: {
           placeholder: "ω",
           pattern: /<w:p w14:paraId="011CD49E".*?ω<\/w:t><\/w:r><\/w:p>/,
           emptyReplacement: "",
@@ -217,6 +217,7 @@ const DocumentGenerator = (function () {
             dob: result.alternateDOB || "",
             sex: result.alternateSex || "",
           };
+          console.log("Mapped alternate info:", this.alternateInfo);
           resolve();
         });
       });
@@ -390,18 +391,14 @@ const DocumentGenerator = (function () {
      */
     handleOptionalParagraphs(content, templateType) {
       if (templateType === "expungement") {
-        const patterns =
-          DocumentGenerator.OPTIONAL_PARAGRAPH_PATTERNS.expungement;
-
+        const patterns = DocumentGenerator.OPTIONAL_PARAGRAPH_PATTERNS.expungement;
+    
         for (const [key, pattern] of Object.entries(patterns)) {
-          const value = this[key]; // These values come from the class instance
+          const value = this.alternateInfo[key];  // Access through alternateInfo
           if (value) {
             content = content.replace(pattern.placeholder, value);
           } else {
-            content = content.replace(
-              pattern.pattern,
-              pattern.emptyReplacement
-            );
+            content = content.replace(pattern.pattern, pattern.emptyReplacement);
           }
         }
       } else if (templateType === "warrant") {
@@ -500,11 +497,10 @@ const DocumentGenerator = (function () {
       const response = await fetch(path);
       return await response.arrayBuffer();
     }
-
     async initializeNewPDF(pdfBytes, client) {
       const pdfDoc = await window.PDFLib.PDFDocument.load(pdfBytes);
       const form = pdfDoc.getForm();
-
+    
       const clientNameField = form.getTextField("Client_Name");
       const clientHomeAddressField = form.getTextField("Home_Address");
       const clientMailingAddressField = form.getTextField("Mailing_Address");
@@ -513,21 +509,21 @@ const DocumentGenerator = (function () {
       const clientDOBField = form.getTextField("Date of Birth");
       const signingDateField = form.getTextField("Signing_Date");
       const sexField = form.getRadioGroup("Sex");
-
+    
       const clientAddressOneLine = [
-        this.alternateAddressLine1,
-        this.alternateAddressLine2,
-        this.alternateAddressLine3,
+        this.alternateInfo.addressLine1,
+        this.alternateInfo.addressLine2,
+        this.alternateInfo.addressLine3
       ]
         .filter(Boolean)
         .join(", ");
-
+    
       clientNameField.setText(client["PDF Name"]);
       clientHomeAddressField.setText(clientAddressOneLine);
       clientMailingAddressField.setText(clientAddressOneLine);
-      clientPhoneField.setText(this.alternatePhone);
-      clientEmailField.setText(this.alternateEmail);
-      clientDOBField.setText(this.alternateDOB);
+      clientPhoneField.setText(this.alternateInfo.phone);
+      clientEmailField.setText(this.alternateInfo.email);
+      clientDOBField.setText(this.alternateInfo.dob);
       signingDateField.setText(
         new Date().toLocaleDateString("en-US", {
           timeZone: "HST",
@@ -536,13 +532,56 @@ const DocumentGenerator = (function () {
           day: "numeric",
         })
       );
-
-      if (this.alternateSex) {
-        sexField.select(this.alternateSex);
+    
+      if (this.alternateInfo.sex) {
+        sexField.select(this.alternateInfo.sex);
       }
-
+    
       return pdfDoc;
     }
+
+    // async initializeNewPDF(pdfBytes, client) {
+    //   const pdfDoc = await window.PDFLib.PDFDocument.load(pdfBytes);
+    //   const form = pdfDoc.getForm();
+
+    //   const clientNameField = form.getTextField("Client_Name");
+    //   const clientHomeAddressField = form.getTextField("Home_Address");
+    //   const clientMailingAddressField = form.getTextField("Mailing_Address");
+    //   const clientPhoneField = form.getTextField("Phone_Number");
+    //   const clientEmailField = form.getTextField("Email");
+    //   const clientDOBField = form.getTextField("Date of Birth");
+    //   const signingDateField = form.getTextField("Signing_Date");
+    //   const sexField = form.getRadioGroup("Sex");
+
+    //   const clientAddressOneLine = [
+    //     this.alternateAddressLine1,
+    //     this.alternateAddressLine2,
+    //     this.alternateAddressLine3,
+    //   ]
+    //     .filter(Boolean)
+    //     .join(", ");
+
+    //   clientNameField.setText(client["PDF Name"]);
+    //   clientHomeAddressField.setText(clientAddressOneLine);
+    //   clientMailingAddressField.setText(clientAddressOneLine);
+    //   clientPhoneField.setText(this.alternatePhone);
+    //   clientEmailField.setText(this.alternateEmail);
+    //   clientDOBField.setText(this.alternateDOB);
+    //   signingDateField.setText(
+    //     new Date().toLocaleDateString("en-US", {
+    //       timeZone: "HST",
+    //       year: "numeric",
+    //       month: "long",
+    //       day: "numeric",
+    //     })
+    //   );
+
+    //   if (this.alternateSex) {
+    //     sexField.select(this.alternateSex);
+    //   }
+
+    //   return pdfDoc;
+    // }
 
     initializeNewPage(page, clientName) {
       page.drawText(`Client: ${clientName}`, {
@@ -631,8 +670,8 @@ const DocumentGenerator = (function () {
         κ: letterName,
         δ: letterDate,
         τ: caseNumber,
-        μ: this.alternateAddressLine1,
-        ν: this.alternateAddressLine2,
+        μ: this.alternateInfo.addressLine1,
+        ν: this.alternateInfo.addressLine2,
         ε: courtName,
         ζ: courtAddress1,
         η: courtAddress2,
