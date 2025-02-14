@@ -53,36 +53,25 @@ function retrieveRecord(caseID, action = 'log') {
   });
 }
 
-
+// ALERT: Function is duplicated in retrievaService.js!
 async function retrieveAllAndReturn() {
   const results = [];
   const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
   
   for (const link of caseIDLinks) {
-      const caseID = link.textContent.trim();
-
-      console.log(`Retrieving record for case ID: ${caseID}...`);
-      try {
-          const htmlResponse = await retrieveRecord(caseID, 'return');
-          results.push({
-              caseID,
-              html: htmlResponse
-          });
-          
-          // Add a small delay between requests
-          await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-          console.error(`Error retrieving case ${caseID}:`, error);
+      //const caseID = link.textContent.trim();
+      let caseID
+      const onclickAttr = link.getAttribute("onclick");
+      if (onclickAttr) {
+        const match = onclickAttr.match(/form\['caseID'\]\.value='(.*?)'/);
+        if (match) {
+            caseID = match[1]; // Extract the correct case ID
+        }
+        console.log('Extracted onClick case ID:', caseID);
+      } else {
+        caseID = link.textContent.trim();
+        console.log('Using text content case ID:', caseID);
       }
-  }
-  
-  return results;
-}async function retrieveAllAndReturn() {
-  const results = [];
-  const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
-  
-  for (const link of caseIDLinks) {
-      const caseID = link.textContent.trim();
 
       console.log(`Retrieving record for case ID: ${caseID}...`);
       try {
@@ -101,32 +90,6 @@ async function retrieveAllAndReturn() {
   
   return results;
 }
-
-async function retrieveAllAndReturn() {
-  const results = [];
-  const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
-  
-  for (const link of caseIDLinks) {
-      const caseID = link.textContent.trim();
-
-      console.log(`Retrieving record for case ID: ${caseID}...`);
-      try {
-          const htmlResponse = await retrieveRecord(caseID, 'return');
-          results.push({
-              caseID,
-              html: htmlResponse
-          });
-          
-          // Add a small delay between requests (or not)
-          //await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-          console.error(`Error retrieving case ${caseID}:`, error);
-      }
-  }
-  
-  return results;
-}
-
 /////////////////////// Storage Functions ///////////////////////
 // Function to load mode from storage
 function loadMode() {

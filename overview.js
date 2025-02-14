@@ -227,7 +227,18 @@ async function processCaseTable(existingCases, retrieveNewCases = true) {
 
     // Skip rows without case links (e.g., button row at the end)
     if ($caseLink.length) {
-      const caseNumber = $caseLink.text().trim();
+      //const caseNumber = $caseLink.text().trim();
+      let caseNumber;
+      const onclickAttr = $caseLink.attr("onclick");
+      if (onclickAttr) {
+          const match = onclickAttr.match(/form\['caseID'\]\.value='(.*?)'/);
+          if (match) {
+              caseNumber = match[1]; // Extract the correct case ID
+          }
+      } else {
+          caseNumber = $caseLink.text().trim();
+      }
+      
 
       // Get case type from the correct column index
       const caseType =

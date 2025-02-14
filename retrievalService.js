@@ -6,8 +6,11 @@ function retrieveRecord(caseID, action = 'log') {
     console.log(`Search results type: ${pageTitle}`);
 
     // 2. Find the link element for this case to get its correct index
+    // const caseLink = [...document.querySelectorAll('[id*="caseIdLink"]')].find(
+    //     link => link.textContent.trim() === caseID
+    // );
     const caseLink = [...document.querySelectorAll('[id*="caseIdLink"]')].find(
-        link => link.textContent.trim() === caseID
+        link => link.getAttribute('onclick')?.includes(caseID)
     );
 
     if (!caseLink) {
@@ -66,7 +69,19 @@ async function retrieveAllAndReturn() {
     const caseIDLinks = document.querySelectorAll('[id*="caseIdLink"]');
     
     for (const link of caseIDLinks) {
-        const caseID = link.textContent.trim();
+        //const caseID = link.textContent.trim();
+        let caseID
+        const onclickAttr = link.getAttribute("onclick");
+        if (onclickAttr) {
+            const match = onclickAttr.match(/form\['caseID'\]\.value='(.*?)'/);
+            if (match) {
+                caseID = match[1]; // Extract the correct case ID
+            }
+            console.log('Extracted onClick case ID:', caseID);
+        } else {
+            caseID = link.textContent.trim();
+            console.log('Using text content case ID:', caseID);
+        }
         console.log(`Retrieving record for case ID: ${caseID}...`);
         
         try {
