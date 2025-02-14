@@ -587,6 +587,28 @@ function initializeOverviewPage() {
     chrome.runtime.onMessage.addListener(overviewListener);
   }
 
+  function setupSearchHandler() {
+    const searchButtonSelector = '#frm\\:searchButtonCaptcha';
+  
+    // Remove any existing handlers first (to avoid duplicates)
+    $(document).off('click.search', searchButtonSelector);
+  
+    // Attach a click handler that waits for ICEfaces to update the DOM,
+    // then calls your table update logic
+    $(document).on('click.search', searchButtonSelector, function (e) {
+      // Use a short delay to allow ICEfaces partial update to finish
+      // Do this several times in case user completes Captcha quickly or slowly
+      setTimeout(handlePaginationUpdate, 2000);
+      setTimeout(handlePaginationUpdate, 10000);
+      setTimeout(handlePaginationUpdate, 15000);
+      setTimeout(handlePaginationUpdate, 20000);
+      setTimeout(handlePaginationUpdate, 25000);
+    });
+  
+    overviewLog("Search handler set up");
+  }
+  
+
   // Function to update table after pagination
   async function handlePaginationUpdate() {
     overviewLog("Handling pagination update");
@@ -652,6 +674,7 @@ function initializeOverviewPage() {
 
   // Set up pagination handlers initially (in case table is already present)
   setupPaginationHandlers();
+  setupSearchHandler();
 }
 
 // Initialize everything when the script loads

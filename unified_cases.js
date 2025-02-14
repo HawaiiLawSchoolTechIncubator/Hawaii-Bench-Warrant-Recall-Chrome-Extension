@@ -3035,6 +3035,10 @@ async initialize() {
     penal: {
         pattern: /penal summons/i,
         type: 'penal summons'
+    },
+    warrant_related: {
+        pattern: /defendant not present|failed to appear|failure to appear/i,
+        type: 'warrant related'
     }
   };
 
@@ -3116,8 +3120,10 @@ async initialize() {
     if (DocketService.ACTION_PATTERNS.non_appearance.pattern.test(text)) {
       if (!analysis.action) {
         analysis.action = 'non-appearance';
+        analysis.isWarrantRelated = true;
       } else if (!analysis.action.includes('non-appearance')) {
         analysis.action += '; non-appearance';
+        analysis.isWarrantRelated = true;
       }
     }
     // console.log('Warrant text:', text);
