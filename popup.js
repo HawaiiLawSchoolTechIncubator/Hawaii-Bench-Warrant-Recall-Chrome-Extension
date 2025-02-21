@@ -2235,8 +2235,8 @@ async function updateGenerateButtonState() {
   const [isValid, message] = await validateGenerateButton();
   
   // Update button appearance
-  generateButton.removeClass('btn-primary btn-secondary')
-               .addClass(isValid ? 'btn-primary' : 'btn-secondary');
+  generateButton.removeClass('btn-dark btn-secondary')
+               .addClass(isValid ? 'btn-dark' : 'btn-secondary');
   
   // Clear any existing alerts
   alertContainer.empty();
