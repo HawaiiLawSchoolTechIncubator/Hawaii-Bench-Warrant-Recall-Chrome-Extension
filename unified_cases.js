@@ -559,7 +559,6 @@ class ExpungeabilityEvaluator {
         if (this.ADVERSE_FINAL_DISPOSITIONS.some(disp => this.safeIncludes(disposition, disp))) {
           return result;
         }
-
         // Handle deferred acceptance dispositions
         if (
           result.status === "Deferred" ||
@@ -594,18 +593,19 @@ class ExpungeabilityEvaluator {
             dismissalAfterDeferral,
             dismissalDate
           );
-        } else {
-          // currentStatus = {
-          //   ...result,
-          //   disposition,
-          //   dispositionDate: charge.dispositionDates[i],
-          // };
-          currentStatus = this.expungeAfterDeferral(
-            currentStatus,
-            deferralDate,
-            dismissalAfterDeferral,
-            dismissalDate
-          );
+        // } else {
+        //   console.log('Block: no deferred acceptance or no dismissal after deferral');
+        //   // currentStatus = {
+        //   //   ...result,
+        //   //   disposition,
+        //   //   dispositionDate: charge.dispositionDates[i],
+        //   // };
+        //   currentStatus = this.expungeAfterDeferral(
+        //     currentStatus,
+        //     deferralDate,
+        //     dismissalAfterDeferral,
+        //     dismissalDate
+        //   );
         }
       }
     }
