@@ -3046,10 +3046,6 @@ async initialize() {
     execution: {
       pattern: /executed|execution|exec |return of service/i, // Provisionally including "return of service"
       action: 'execution'                                     // as "execution" often not explicitly stated
-  },
-    issue: {
-        pattern: /issued|ordered/i,
-        action: 'issue'
     },
     recall: {
         pattern: /recalled|quashed|returned/i,
@@ -3070,7 +3066,11 @@ async initialize() {
     non_appearance: {
       pattern: /defendant not present|failed to appear|failure to appear/i,
       action: 'non-appearance'
-    }, 
+    },
+    issue: {
+      pattern: /issued|ordered| Bench Warrant Circuit Criminal/i,
+      action: 'issue'
+    },
     // under_advisement: {
     //   pattern: /under advisement/i,
     //   action: 'under advisement'
