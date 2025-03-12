@@ -457,6 +457,13 @@ class ExpungeabilityEvaluator {
     return result.status === "Expungeable";
   });
 
+  // List of dispositions that are definitely not determinable ("possibly expungeable"),
+  // i.e., committed to Circuit Court or remanded to District Court
+  static NOT_DETERMINABLE_DISPOSITIONS = Object.keys(this.DISPOSITION_RULES).filter(key => {
+    const result = this.DISPOSITION_RULES[key]({}, {});
+    return result.status === "Possibly Expungeable";
+  });
+
   ///////////////////////////////// END OF DYNAMIC LISTS /////////////////////////////////
 
   static isChargeExpungeable(
@@ -505,7 +512,7 @@ class ExpungeabilityEvaluator {
         explanation: "Civil infractions are not expungeable.",
       };
     }
-
+    
     let currentStatus = {
       status: "Unknown",
       explanation: "Unrecognized disposition.",
@@ -559,6 +566,12 @@ class ExpungeabilityEvaluator {
         if (this.ADVERSE_FINAL_DISPOSITIONS.some(disp => this.safeIncludes(disposition, disp))) {
           return result;
         }
+        
+        // Handle not determinable dispositions
+        if (this.NOT_DETERMINABLE_DISPOSITIONS.some(disp => this.safeIncludes(disposition, disp))) {
+          return result;
+        }
+
         // Handle deferred acceptance dispositions
         if (
           result.status === "Deferred" ||
@@ -617,6 +630,8 @@ class ExpungeabilityEvaluator {
     //     currentStatus.status === "Possibly Expungeable" ||
     //     currentStatus.status === "Unknown"
     //   )
+
+
     if (
         this.expungeabilityDependsOnSoL(
           currentStatus.status,
@@ -806,6 +821,9 @@ class ExpungeabilityEvaluator {
   // Determine whether expungeability depends on statute of limitations based on charge
   // disposition status and explanation properties (for use with is ChargeExpungeable method)
   static expungeabilityDependsOnSoL(dispositionStatus, explanation) {
+    console.log('In expungeabilityDependsOnSoL method');
+    console.log('dispositionStatus:', dispositionStatus);
+    console.log('explanation:', explanation);
     // No: disposition is in static list ADVERSE_FINAL_DISPOSITIONS
     if (this.ADVERSE_FINAL_DISPOSITIONS.some(disp => this.safeIncludes(explanation, disp))) {
       console.log('Expungeability does NOT depend on statute of limitations: adverse final disposition');
@@ -819,6 +837,12 @@ class ExpungeabilityEvaluator {
     // No: disposition is definitely expungeable
     if (this.EXPUNGEABLE_DISPOSITIONS.some(disp => this.safeIncludes(explanation, disp))) {
       console.log('Expungeability does NOT depend on statute of limitations: disposition is definitely expungeable');
+      return false;
+    }
+
+    // No: case was committed to Circuit Court or remanded to District Court
+    if (this.safeIncludes(explanation, "See Circuit Court case") || this.safeIncludes(explanation, "See District Court case")) {
+      console.log('Expungeability does NOT depend on statute of limitations: case was committed to Circuit Court or remanded to District Court');
       return false;
     }
 
