@@ -58,6 +58,7 @@ function appendExistingCaseStatus($cell, status, explanation) {
       bgColor = "lightgreen";
       break;
     case "not expungeable":
+    case "some not expungeable":
     case "none expungeable":
       bgColor = "lightcoral";
       break;

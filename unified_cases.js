@@ -1143,6 +1143,9 @@ class ExpungeabilityEvaluator {
     } else if (notExpungeableCount === charges.length) {
       status = "None Expungeable";
       explanation = "None of the charges in this case are expungeable.";
+    } else if (notExpungeableCount > 0) {
+      status = "Some Not Expungeable";
+      explanation = "Some charges are not expungeable. Under HRS § 831-3.2(f)(1) (effective July 1, 2025) all charges must be expungeable to expunge case.";
     } else if (noDispositionCount === charges.length) {
       status = "Pending";
       explanation = "Cannot locate disposition(s). Case may still be pending.";
@@ -1156,6 +1159,7 @@ class ExpungeabilityEvaluator {
     ) {
       status = "All Possibly Expungeable";
       explanation = "All charges in this case are possibly expungeable.";
+    
     } else {
       if (expungeableCount > 0) {
         status = "Some Expungeable";

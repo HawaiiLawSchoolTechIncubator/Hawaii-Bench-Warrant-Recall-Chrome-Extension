@@ -21,6 +21,7 @@ flowchart LR
         inelig_left_town["...thwarted prosecution by leaving the jurisdiction: HRS §831-3.2(a)(3)"]
         inelig_hospital["...involuntarily hospitalized under HRS §706-607: HRS §831-3.2(a)(4)"]
         inelig_unfit["...acquitted/charges dismissed because of physical/mental disease/disorder/defect: HRS §831-3.2(a)(4)"]
+        inelig_multiple_defendants["...has a co-defendant lacking own expungement order: HRS §831-3.2(f)(2)"]
     end  
 
     subgraph  
@@ -50,8 +51,8 @@ flowchart LR
 
     B --> disp_innocent & disp_dsm_w_prej & disp_defer_accept & disp_guilty & disp_without_prej & disp_default & disp_remand & disp_commit
     B --> disp_nonconvict_inelig
-    disp_nonconvict_inelig --> inelig_felony_skipped_bail & inelig_p_misd_viol_skipped_bail & inelig_left_town & inelig_hospital & inelig_unfit 
-    inelig_felony_skipped_bail & inelig_p_misd_viol_skipped_bail & inelig_left_town & inelig_hospital & inelig_unfit --> undetected[Extension will not detect: manually verify]
+    disp_nonconvict_inelig --> inelig_felony_skipped_bail & inelig_p_misd_viol_skipped_bail & inelig_left_town & inelig_hospital & inelig_unfit & inelig_multiple_defendants
+    inelig_felony_skipped_bail & inelig_p_misd_viol_skipped_bail & inelig_left_town & inelig_hospital & inelig_unfit & inelig_multiple_defendants --> undetected[Extension will not detect: manually verify]
 
     disp_innocent --> assess_expunge
     disp_dsm_w_prej --> assess_expunge
@@ -97,7 +98,7 @@ flowchart LR
     class assess_possibly_expunge,assess_expunge_post_dsm,assess_expunge_post_sol,assess_see_district,assess_see_circuit,assess_expunge_21,assess_1st_expunge,assess_1st_2nd_expunge possibly_expungeable;
     class B,J,check_post_dsm_period,check_sol_period,check_post_2004 blue;
     class offense_minor_DUI,offense_prop,offense_drug,offense_other red;
-    class inelig_felony_skipped_bail,inelig_p_misd_viol_skipped_bail,inelig_left_town,inelig_hospital,inelig_unfit orange;
+    class inelig_felony_skipped_bail,inelig_p_misd_viol_skipped_bail,inelig_left_town,inelig_hospital,inelig_unfit,inelig_multiple_defendants orange;
     class disp_innocent,disp_dsm_w_prej,disp_defer_accept,disp_guilty,disp_without_prej,disp_default,disp_remand,disp_commit,disp_nonconvict_inelig disposition;
     class undetected warning;
 ```

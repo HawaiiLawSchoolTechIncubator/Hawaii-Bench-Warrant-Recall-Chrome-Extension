@@ -691,6 +691,7 @@ function generateExpungeabilityCell(caseData) {
       html += "text-expungeable";
       break;
     case "None Expungeable":
+    case "Some Not Expungeable":
       html += "text-not-expungeable";
       break;
     case "Some Expungeable":
@@ -1267,6 +1268,7 @@ async function displayCaseDetails(caseData) {
 
   // Set overall expungeability
   /////////////////////// Set overall status ///////////////////////
+  ////// Expungeability Badge //////
   const overallStatusContainer = $("#overall-expungeability");
   if (currentMode === "expungement") {
     overallStatusContainer.text(caseData.Expungeable);
@@ -1274,7 +1276,7 @@ async function displayCaseDetails(caseData) {
       getExpungeabilityClass(caseData.Expungeable)
     );
   } else {
-    // Create badge styling to match expungeability badge style
+    ////// Warrant Status Badge //////
     const warrantStatus = caseData?.warrantStatus;
     let statusText = "No Warrant Information";
     let badgeClass = "badge "; // Base badge class
@@ -2351,7 +2353,8 @@ function getExpungeabilityClass(status) {
     return "bg-success text-white";
   } else if (
     normalizedStatus === "none expungeable" ||
-    normalizedStatus === "not expungeable"
+    normalizedStatus === "not expungeable" ||
+    normalizedStatus === "some not expungeable"
   ) {
     return "bg-danger text-white";
   } else if (
