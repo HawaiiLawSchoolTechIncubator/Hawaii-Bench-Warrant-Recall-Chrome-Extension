@@ -8,23 +8,15 @@ async function getTab() {
 }
 
 
-//This checks to see if the URL is the overview page and then runs the script automatically without having the user click the button.
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-  // Check if the URL matches and the page has finished loading
-  if (tab.url === "http://jimspss1.courts.state.hi.us:8080/eCourt/ECC/PartyNameSearch.iface" && changeInfo.status === 'complete') {
-    // Inject the script
-    console.log("Injecting Script");
-    getTab().then(function(tab){
-      chrome.scripting.executeScript({
-          target : {tabId : tab.id},
-          files: ["libs/jquery-3.6.3.min.js","overview.js","global_cases.js"]
-        });
-    
-  })
-  .catch((reason) => console.log("Error" + reason.message));
-  }
+// eCourt Kokua has been served both at http://...:8080 and at https://... (port 443).
+// Match either origin so the CSS injection and pagination hooks keep working.
+const ECOURT_ECC_RE = /^https?:\/\/jimspss1\.courts\.state\.hi\.us(:8080)?\/eCourt\/ECC\//;
+const PARTY_SEARCH_RE = /^https?:\/\/jimspss1\.courts\.state\.hi\.us(:8080)?\/eCourt\/ECC\/PartyNameSearch\.iface/;
 
-  if (tab.url.includes("http://jimspss1.courts.state.hi.us:8080/eCourt/ECC") && changeInfo.status === 'complete') {
+// overview.js and global_cases.js are loaded as manifest content scripts on every court page,
+// so they are no longer re-injected here (re-injecting overview.js threw a redeclaration SyntaxError).
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  if (ECOURT_ECC_RE.test(tab.url || "") && changeInfo.status === 'complete') {
     // Inject the CSS
     console.log("Injecting CSS");
     injectCSS(tabId)
@@ -55,7 +47,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       getTab().then(function(tab){
           chrome.scripting.executeScript({
           target : {tabId : tab.id},
-          files: ["libs/jquery-3.6.3.min.js","overview.js","global_cases.js"]
+          files: ["libs/jquery-3.6.3.min.js","global_cases.js"] // overview.js is a manifest content script; re-injecting it throws
         });
       })
       .catch((reason) => console.log("Error at line " + reason.lineNumber + ": " + reason.message));
@@ -77,7 +69,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       requestDetailsMap.set(details.requestId, details.requestBody);
     }
   },
-  { urls: ["http://*.courts.state.hi.us/*"] },
+  { urls: ["http://*.courts.state.hi.us/*", "https://*.courts.state.hi.us/*"] },
   ["requestBody"]
 );
 
@@ -93,11 +85,11 @@ chrome.webRequest.onCompleted.addListener(
         // console.log("Request Payload:", requestBody);
 
 
-        if(requestBody.formData['ice.event.captured'][0].includes("results_page_scrolleridx")){
+        if(requestBody.formData?.['ice.event.captured']?.[0]?.includes("results_page_scrolleridx")){
           console.log("Page Clicked");
           chrome.tabs.query({}, function(tabs) {
             tabs.forEach(function(tab) {
-              if (tab.id === details.tabId && details.url == "http://jimspss1.courts.state.hi.us:8080/eCourt/ECC/PartyNameSearch.iface") {
+              if (tab.id === details.tabId && PARTY_SEARCH_RE.test(details.url)) {
                 chrome.tabs.sendMessage(tab.id, { message: "ajax_complete", details: details,url: details.url});
               }
             });
@@ -108,7 +100,7 @@ chrome.webRequest.onCompleted.addListener(
       }
     }
   },
-  { urls: ["http://*.courts.state.hi.us/*"] }
+  { urls: ["http://*.courts.state.hi.us/*", "https://*.courts.state.hi.us/*"] }
 );
 
 // Function to inject CSS
