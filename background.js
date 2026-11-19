@@ -37,14 +37,21 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
           console.log("Read tab.url")
           // unified_cases.js is a manifest content script, so it is normally already loaded and
           // re-injecting it throws a redeclaration SyntaxError. It is missing only in tabs that were
-          // open before the extension was installed/reloaded, so inject it only when absent.
+          // open before the extension was installed/reloaded, so in that case inject the manifest
+          // content scripts it depends on (incl. Bootstrap, for tooltips) before expungeable.js.
           const [{ result: alreadyLoaded } = {}] = await chrome.scripting.executeScript({
               target : {tabId : tab.id},
               func: () => typeof CaseProcessorFactory !== "undefined"
             });
           const files = alreadyLoaded
             ? ["expungeable.js"]
-            : ["libs/jquery-3.6.3.min.js","global_cases.js","unified_cases.js","expungeable.js"];
+            : ["error-handler.js","libs/bootstrap.bundle.min.js","libs/jquery-3.6.3.min.js","unified_cases.js","global_cases.js","expungeable.js"];
+          if (!alreadyLoaded) {
+            await chrome.scripting.insertCSS({
+                target : {tabId : tab.id},
+                files: ["libs/bootstrap.min.css"]
+              });
+          }
           await chrome.scripting.executeScript({
               target : {tabId : tab.id},
               files: files
