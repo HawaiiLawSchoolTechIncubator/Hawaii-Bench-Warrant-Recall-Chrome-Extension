@@ -3386,6 +3386,8 @@ async function processAllCases() {
 
     $(document).ready(async function () {
       const processor = CaseProcessorFactory.createProcessor();
+      // createProcessor() returns null (after showing the user a dialog) when the page isn't a supported case record
+      if (!processor) return;
       await processor.process();
     });
   } catch (error) {

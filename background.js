@@ -29,15 +29,25 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     //Checks to see if an individual case is eligible for expungement
     //This calls a file called "global_cases.js" which calls unified_cases to determine the case type (DTC, DCW, CPC, etc.) and process the case.
       console.log("Injecting Expungeability Content Script");
-      getTab().then(function(tab){
+      getTab().then(async function(tab){
           console.log("Tab Info:");
           console.log(tab);
           console.log("Read tab");
           console.log(tab.url);
           console.log("Read tab.url")
-          chrome.scripting.executeScript({
+          // unified_cases.js is a manifest content script, so it is normally already loaded and
+          // re-injecting it throws a redeclaration SyntaxError. It is missing only in tabs that were
+          // open before the extension was installed/reloaded, so inject it only when absent.
+          const [{ result: alreadyLoaded } = {}] = await chrome.scripting.executeScript({
               target : {tabId : tab.id},
-              files: ["libs/jquery-3.6.3.min.js","global_cases.js","unified_cases.js","expungeable.js"]
+              func: () => typeof CaseProcessorFactory !== "undefined"
+            });
+          const files = alreadyLoaded
+            ? ["expungeable.js"]
+            : ["libs/jquery-3.6.3.min.js","global_cases.js","unified_cases.js","expungeable.js"];
+          await chrome.scripting.executeScript({
+              target : {tabId : tab.id},
+              files: files
             });
       })
       .catch((reason) => console.log("Error" + reason.message));
