@@ -430,6 +430,19 @@ class ExpungeabilityEvaluator {
           };
       return result;
     },
+    // JIMS abbreviation for an accepted guilty plea ("Accpt Glty Plea Prior to
+    // Trial"); "Guilty" does not match it as a substring.
+    "Accpt Glty Plea": (charge, additionalFactors) => {
+      const postConvictionResult = this.expungeAfterConviction(charge);
+      let result = postConvictionResult
+        ? postConvictionResult
+        : {
+            status: "Not Expungeable",
+            explanation: "Non-expungeable adverse disposition.",
+            finalJudgment: true,
+          };
+      return result;
+    },
     "Judgment for State": (charge, additionalFactors) => ({
       status: "Not Expungeable",
       explanation: "Non-expungeable adverse disposition.",

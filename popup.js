@@ -1106,6 +1106,7 @@ async function displayCaseDetails(caseData) {
     dismissedOnOralMotion: "Dismissed on Oral Motion",
     hasOutstandingWarrant: "Outstanding Warrant",
     warrantDetails: "Warrant Status",
+    chargeAmendments: "Charge Amendments (from docket)",
     otnNumbers: "OTN Numbers",
   };
 
@@ -1125,11 +1126,46 @@ async function displayCaseDetails(caseData) {
 
   // Helper function to check if a value is blank
   const isBlank = (value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return Object.keys(value).length === 0;
+    }
     return value === null || value === undefined || String(value).trim() === "";
   };
 
+  // Charge-level codes used in docket amendment entries
+  const chargeLevelNames = {
+    PM: "petty misdemeanor",
+    MD: "misdemeanor",
+    FC: "class C felony",
+    FB: "class B felony",
+    FA: "class A felony",
+    F1: "felony",
+    F2: "felony",
+    VL: "violation",
+    IN: "infraction",
+  };
+
+  // Render DocketService.findChargeAmendments() output, e.g.
+  // "Count 1: amended from petty misdemeanor (HRS 708-833(1)) to violation"
+  const formatChargeAmendments = (amendments) =>
+    Object.entries(amendments)
+      .map(([count, a]) => {
+        const from = a.fromCrimeLevel
+          ? ` from ${chargeLevelNames[a.fromCrimeLevel] || a.fromCrimeLevel}${
+              a.fromStatute ? ` (${a.fromStatute})` : ""
+            }`
+          : "";
+        const to = a.toLevel ? ` to ${chargeLevelNames[a.toLevel] || a.toLevel}` : "";
+        const reason = !from && !to && a.reason ? ` (${a.reason})` : "";
+        return `Count ${count}: amended${from}${to}${reason}`;
+      })
+      .join("; ");
+
   // Helper function to format property values
   const formatValue = (key, value) => {
+    if (key === "chargeAmendments" && value && typeof value === "object") {
+      return formatChargeAmendments(value);
+    }
     if (key === "withPrejudice" && value === false) {
       return "Not found in docket: check disposition";
     }
