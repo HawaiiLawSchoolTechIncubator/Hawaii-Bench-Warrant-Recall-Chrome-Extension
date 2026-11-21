@@ -604,12 +604,48 @@ const DocumentGenerator = (function () {
           day: "numeric",
         })
       );
-    
+
+      // Give every text field an explicit font size that fits with margin.
+      // Left to auto-size, pdf-lib shrinks text until it *just* fits (e.g. the
+      // ~99pt date box gets "November 20, 2026" at 11pt), but Acrobat lays text
+      // out with ~2pt padding per side and then won't display a value that
+      // overflows until the field is clicked.
+      const helvetica = await pdfDoc.embedFont(window.PDFLib.StandardFonts.Helvetica);
+      [
+        clientNameField,
+        clientHomeAddressField,
+        clientMailingAddressField,
+        clientPhoneField,
+        clientEmailField,
+        clientDOBField,
+        signingDateField,
+      ].forEach((field) => {
+        try {
+          this.setFittingFontSize(field, helvetica);
+        } catch (error) {
+          console.error(`Could not set font size for ${field.getName()}:`, error);
+        }
+      });
+
       if (this.alternateInfo.sex) {
         sexField.select(this.alternateInfo.sex);
       }
     
       return pdfDoc;
+    }
+
+    // Largest font size (max 12pt, min 6pt) at which the field's text fits
+    // inside its widget with padding to spare.
+    setFittingFontSize(field, font, maxSize = 12, minSize = 6) {
+      const text = field.getText() || "";
+      const widget = field.acroField.getWidgets()[0];
+      const width = widget ? widget.getRectangle().width : 0;
+      const available = width - 8; // ~2pt Acrobat padding per side + margin
+      let size = maxSize;
+      while (size > minSize && text && font.widthOfTextAtSize(text, size) > available) {
+        size -= 0.5;
+      }
+      field.setFontSize(size);
     }
 
     // async initializeNewPDF(pdfBytes, client) {
