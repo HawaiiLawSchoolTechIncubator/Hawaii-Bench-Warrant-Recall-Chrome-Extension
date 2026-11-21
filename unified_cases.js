@@ -255,13 +255,20 @@ const utils = {
       severity === "fc"
     ) {
       normalizedSeverity = "Felony C";
-    } else if (
-      severity === "vl"
-    ) {
+    } else if (severity === "in" || severity.includes("infraction")) {
+      // Civil traffic infraction (ch. 291D; charge level "IN"). Not a crime,
+      // no arrest — never expungeable regardless of disposition.
+      normalizedSeverity = "infraction";
+    } else if (severity === "vl" || severity.includes("violation")) {
+      // Penal violation (HRS 701-107(5); charge level "VL"). Prosecuted
+      // criminally, so expungeability turns on DISPOSITION and on whether the
+      // person was arrested for/charged with a crime (HRS 831-3.2(a) as amended
+      // by Act 152 (2026), codifying Barker v. Young) — not on the grade alone.
       normalizedSeverity = "violation";
     } else if (caseType) {
       if (caseType == "DTI") {
-        normalizedSeverity = "violation";
+        // Traffic-infraction case type → civil infraction.
+        normalizedSeverity = "infraction";
       } else if (caseType == "DTA" || caseType == "DTC") {
         normalizedSeverity = "misdemeanor";
       } else {
@@ -466,7 +473,127 @@ class ExpungeabilityEvaluator {
 
   ///////////////////////////////// END OF DYNAMIC LISTS /////////////////////////////////
 
-  static isChargeExpungeable(
+  // Charge-level codes for crimes (HRS 701-107). "VL" (violation) and "IN"
+  // (infraction) are not crimes.
+  static CRIME_LEVEL_LABELS = {
+    PM: "petty misdemeanor",
+    MD: "misdemeanor",
+    FC: "class C felony",
+    FB: "class B felony",
+    FA: "class A felony",
+    F1: "felony (murder 1st)",
+    F2: "felony (murder 2nd)",
+  };
+
+  static BARKER_CITATION =
+    "HRS §831-3.2(a) as amended by Act 152 (2026), codifying Barker v. Young, 153 Hawaiʻi 144 (2023)";
+
+  // True when the most recent disposition is a final conviction (guilty /
+  // no contest), as opposed to an acquittal or a deferred acceptance.
+  static isConvictionDisposition(charge) {
+    const last = (charge?.dispositions || []).filter(Boolean).slice(-1)[0];
+    if (!last) return false;
+    if (/not guilty|defer/i.test(last)) return false;
+    return /guilty|glty|nolo contendere|no contest|judgment for state/i.test(last);
+  }
+
+  // Public entry point. Wraps the disposition analysis with the rules for
+  // penal "violation"-grade charges (HRS 701-107(5)):
+  //  - Non-conviction (dismissal, acquittal, etc.): surfaced as POSSIBLY
+  //    expungeable pending attorney review — §831-3.2(a) still speaks of a
+  //    person arrested for or charged with "a crime", and Act 152 now defines
+  //    "violation" as a non-crime, so a person charged ONLY with a violation is
+  //    not clearly within the gateway.
+  //  - Conviction: expungeable under Act 152 / Barker v. Young if the person
+  //    was arrested for or charged with a crime in the same incident. The docket
+  //    is the only evidence available: an "amd fr: ... PM to: ... VL" entry
+  //    (explicit crime → violation amendment) => Expungeable; a bare system
+  //    amendment note => Possibly; nothing => Not Expungeable with a pointer to
+  //    verify the arrest/charging record.
+  // Civil traffic infractions (severity "infraction") remain categorically not
+  // expungeable inside _evaluateChargeExpungeable.
+  static isChargeExpungeable(charge, caseType, filingDate, additionalFactors = {}) {
+    const result = this._evaluateChargeExpungeable(
+      charge,
+      caseType,
+      filingDate,
+      additionalFactors
+    );
+    if (charge?.severity !== "violation" || !result) {
+      return result;
+    }
+
+    if (this.isConvictionDisposition(charge)) {
+      // Keep the DUI-under-21 post-conviction path (HRS 291E-64(e)).
+      if (result.status === "Expungeable at 21") {
+        return result;
+      }
+      const countKey = parseInt(charge.count, 10);
+      const amendment = additionalFactors?.chargeAmendments?.[countKey];
+      if (amendment?.fromCrimeLevel) {
+        const label =
+          this.CRIME_LEVEL_LABELS[amendment.fromCrimeLevel] || amendment.fromCrimeLevel;
+        const from = amendment.fromStatute ? ` (${amendment.fromStatute})` : "";
+        return {
+          ...result,
+          status: "Expungeable",
+          explanation: `Violation conviction on a count amended from a ${label}${from}. A person charged with a crime but convicted only of a violation may expunge the arrest record: ${this.BARKER_CITATION}. The §831-3.2(a)(1)-(5) exceptions still apply.`,
+          finalJudgment: true,
+          violationConvictionEligible: true,
+        };
+      }
+      if (amendment?.amended) {
+        return {
+          ...result,
+          status: "Possibly Expungeable",
+          explanation: `Violation conviction on a count the docket shows was amended${amendment.reason ? ` (${amendment.reason})` : ""}, but the original charge level was not found. If the original charge was a crime (petty misdemeanor or higher), the arrest record is expungeable: ${this.BARKER_CITATION}. Verify the original charge.`,
+          finalJudgment: true,
+          violationConvictionEligible: true,
+        };
+      }
+      return {
+        ...result,
+        status: "Not Expungeable",
+        explanation: `Violation conviction. Expungeable only if the person was arrested for or charged with a crime in this incident (${this.BARKER_CITATION}); no amendment from a crime-level charge was found in the docket. Check the arrest report/original complaint if an arrest for a crime is possible.`,
+        finalJudgment: true,
+      };
+    }
+
+    if (result.status === "Expungeable") {
+      return {
+        ...result,
+        status: "Possibly Expungeable",
+        explanation:
+          "Penal violation with a non-conviction disposition. Expungeable if the person was arrested for or charged with a crime; if charged only with a violation, eligibility under HRS §831-3.2(a) is unclear. Attorney review recommended.",
+      };
+    }
+    return result;
+  }
+
+  // Act 152 / Barker eligibility is limited to a person "convicted of a
+  // violation" — not one who was also convicted of a crime from the same
+  // incident. A case-level pass: if any other count in the case is a crime
+  // conviction, downgrade violation-conviction eligibility to "Possibly".
+  static applyViolationConvictionCaseGuard(charges) {
+    const crimeConviction = charges.some(
+      (c) =>
+        c.severity !== "violation" &&
+        c.severity !== "infraction" &&
+        this.isConvictionDisposition(c)
+    );
+    if (!crimeConviction) return;
+    for (const c of charges) {
+      if (c.isExpungeable?.violationConvictionEligible) {
+        c.isExpungeable = {
+          ...c.isExpungeable,
+          status: "Possibly Expungeable",
+          explanation: `${c.isExpungeable.explanation} However, another count in this case resulted in a conviction for a crime; if it arose from the same incident, this arrest is not eligible. Attorney review recommended.`,
+        };
+      }
+    }
+  }
+
+  static _evaluateChargeExpungeable(
     charge,
     caseType,
     filingDate,
@@ -505,11 +632,15 @@ class ExpungeabilityEvaluator {
       return noDispositionFoundResult_Pending;
     }
 
-    // Charge is violation: not expungeable under HRS b/c not a crime
-    if (charge?.severity === "violation") {
+    // Civil traffic infraction (ch. 291D): not a crime, no arrest record to
+    // annul — categorically not expungeable, regardless of disposition. Penal
+    // "violation"-grade charges are NOT short-circuited here; they flow through
+    // the disposition analysis below and are then handled in isChargeExpungeable.
+    if (charge?.severity === "infraction") {
       return {
         status: "Not Expungeable",
-        explanation: "Civil infractions are not expungeable.",
+        explanation:
+          "Civil traffic infractions are not expungeable (no arrest/conviction record to expunge).",
       };
     }
     
@@ -939,9 +1070,9 @@ class ExpungeabilityEvaluator {
     } else if (normalizedSeverity == "§707-733.6 felony") {
       statuteOfLimitations = 999 * 365 * 24 * 60 * 60 * 1000; // 999 years in milliseconds (i.e., no statute of limitations)
       severityDescription = "§707-733.6 Felony";
-    } else if (normalizedSeverity == "violation") {
+    } else if (normalizedSeverity == "violation" || normalizedSeverity == "infraction") {
       statuteOfLimitations = 1 * 365 * 24 * 60 * 60 * 1000; // 1 year in milliseconds
-      severityDescription = "Violation";
+      severityDescription = normalizedSeverity == "violation" ? "Violation" : "Infraction";
     } else {
       console.log(
         `Returning unknown statute of limitations for severity: ${normalizedSeverity}`
@@ -1145,7 +1276,7 @@ class ExpungeabilityEvaluator {
       explanation = "None of the charges in this case are expungeable.";
     } else if (notExpungeableCount > 0) {
       status = "Some Not Expungeable";
-      explanation = "Some charges are not expungeable. Under HRS § 831-3.2(f)(1) (effective July 1, 2025) all charges must be expungeable to expunge case.";
+      explanation = "Some charges are not expungeable. The AG may still expunge the arrest records for the eligible charges, but under HRS § 831-3.2(f)(1) the court is not required to seal a case in which any charge is not covered by the expungement order, so this case will likely remain publicly visible in eCourt Kokua.";
     } else if (noDispositionCount === charges.length) {
       status = "Pending";
       explanation = "Cannot locate disposition(s). Case may still be pending.";
@@ -1266,6 +1397,7 @@ class CaseProcessor {
         ? charge.isExpungeable.deferralPeriodExpiryDate
         : null;
     }
+    ExpungeabilityEvaluator.applyViolationConvictionCaseGuard(caseDetails.charges);
     for (let charge of caseDetails.charges) {
       // Set Statute of Limitations status if disposition is not a final judgment, not a deferred acceptance disposition, and not a commitment/remand
       if (charge?.dispositions && charge.dispositions.length > 0) {
@@ -1383,10 +1515,21 @@ class CaseProcessor {
     
     // Get case-type specific factors
     const typeSpecificFactors = await this.getTypeSpecificFactors();
-    
+
+    // Charge amendments recorded in the docket (used for violation convictions
+    // under Act 152 (2026) / Barker v. Young). Never let a parsing problem
+    // break the assessment.
+    let chargeAmendments = {};
+    try {
+      chargeAmendments = DocketService.findChargeAmendments(entries);
+    } catch (error) {
+      console.error("Error parsing charge amendments from docket:", error);
+    }
+
     return {
         warrantDetails: warrantStatus,
         hasOutstandingWarrant: warrantStatus.hasOutstandingWarrant,
+        chargeAmendments,
         ...typeSpecificFactors
     };
   }
@@ -2992,6 +3135,78 @@ async initialize() {
     }
 
     this.initialized = true;
+  }
+
+  // Scan docket entries for charge amendments. JIMS records them two ways:
+  //  1. Courtroom minutes with an explicit from/to line, e.g.
+  //     "vl amd fr:  cnt 1, rept# ..., HRS 708-833(1), PM to: cnt 1, rept# ...,
+  //      HRS 708-815, VL;"
+  //  2. A system note without levels, e.g.
+  //     "/* An amendment has been made to the violation for Case Number ...
+  //      On 25-AUG-2022 count 1 was changed as a result of Per Plea Agreement */"
+  // ("A correction has been made ..." notes are clerical and ignored.)
+  // Returns { [count]: { amended, reason, fromCrimeLevel, fromStatute, toLevel } }
+  // keyed by the count number AFTER amendment.
+  static findChargeAmendments(entries = []) {
+    const crimeLevels = Object.keys(ExpungeabilityEvaluator.CRIME_LEVEL_LABELS);
+    const amendments = {};
+    const recordFor = (count) => (amendments[count] = amendments[count] || { amended: false });
+
+    const toPlainText = (html) =>
+      String(html || "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&#39;|&apos;/gi, "'");
+
+    // Oldest first, so chained amendments (PM -> MD -> VL) carry forward.
+    const ordered = [...(entries || [])].sort((a, b) => {
+      const ta = a?.date instanceof Date ? a.date.getTime() : NaN;
+      const tb = b?.date instanceof Date ? b.date.getTime() : NaN;
+      if (isNaN(ta) || isNaN(tb)) return 0;
+      return ta - tb;
+    });
+
+    const explicit = /amd\s+fr:\s*cnt\s*(\d+)\b([\s\S]*?)\bto:\s*cnt\s*(\d+)\b([\s\S]*?);/gi;
+    const levelAtEnd = /,\s*([A-Z][A-Z0-9])\s*$/;
+    const statuteIn = /((?:HRS|HAR|ROH|RCH|MCC|SLH)\s+[^,]+)\s*,\s*[A-Z][A-Z0-9]\s*$/;
+    const systemNote = /An amendment has been made to the violation[\s\S]*?count\s+(\d+)\s+was changed as a result of\s+([^*]+?)\s*\*\//gi;
+
+    for (const entry of ordered) {
+      const text = toPlainText(entry?.docketText);
+      if (!/amd\s+fr:|amendment has been made/i.test(text)) continue;
+
+      let m;
+      explicit.lastIndex = 0;
+      while ((m = explicit.exec(text)) !== null) {
+        const fromCount = parseInt(m[1], 10);
+        const toCount = parseInt(m[3], 10);
+        const fromPart = m[2].trim();
+        const toPart = m[4].trim();
+        const fromLevel = (fromPart.match(levelAtEnd) || [])[1] || null;
+        const toLevel = (toPart.match(levelAtEnd) || [])[1] || null;
+        const prior = amendments[fromCount];
+        const rec = recordFor(toCount);
+        rec.amended = true;
+        rec.toLevel = toLevel;
+        if (fromLevel && crimeLevels.includes(fromLevel.toUpperCase())) {
+          rec.fromCrimeLevel = fromLevel.toUpperCase();
+          rec.fromStatute = ((fromPart.match(statuteIn) || [])[1] || "").trim() || null;
+        } else if (prior?.fromCrimeLevel && fromCount !== toCount) {
+          rec.fromCrimeLevel = prior.fromCrimeLevel;
+          rec.fromStatute = prior.fromStatute;
+        }
+      }
+
+      systemNote.lastIndex = 0;
+      while ((m = systemNote.exec(text)) !== null) {
+        const rec = recordFor(parseInt(m[1], 10));
+        rec.amended = true;
+        rec.reason = rec.reason || m[2].trim().toLowerCase();
+      }
+    }
+    return amendments;
   }
 
   // Main method to get parsed docket entries

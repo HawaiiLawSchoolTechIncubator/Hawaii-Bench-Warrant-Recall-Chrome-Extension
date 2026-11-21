@@ -465,31 +465,103 @@ const DocumentGenerator = (function () {
       const pdfBytes = await this.loadPdfTemplate(pdfTemplatePath);
       const pdfDoc = await this.initializeNewPDF(pdfBytes, client);
 
-      let newPage = pdfDoc.addPage([600, 400]);
-      let yPosition = this.initializeNewPage(newPage, client["PDF Name"]);
+      // Summary pages. NB: pdf-lib's standard fonts are WinAnsi-encoded, so
+      // keep this text to ASCII plus "§" (no ʻokina, curly quotes, etc.).
+      const font = await pdfDoc.embedFont(window.PDFLib.StandardFonts.Helvetica);
+      const summary = { pdfDoc, font, clientName: client["PDF Name"] };
+      summary.page = pdfDoc.addPage([600, 400]);
+      summary.y = this.initializeNewPage(summary.page, client["PDF Name"]);
 
       let hasExpungeableCase = false;
 
       for (const caseObj of clientCaseList) {
-        yPosition = this.addCaseToPage(newPage, caseObj, yPosition);
+        this.drawSummaryText(
+          summary,
+          `Case Number: ${caseObj.CaseNumber}: ${caseObj.Expungeable}`,
+          { size: 10 }
+        );
+        for (const note of this.getCaseSummaryNotes(caseObj)) {
+          this.drawSummaryText(summary, note, { size: 8, indent: 15 });
+        }
+        summary.y -= 6;
 
         if (this.isExpungeableEnoughForPaperwork(caseObj)) {
-          await this.generateExpungementLetterDOCX(
-            caseObj,
-            client,
-            client["Letter Name"]
-          );
           hasExpungeableCase = true;
         }
+      }
 
-        if (yPosition < 50) {
-          newPage = pdfDoc.addPage([600, 400]);
-          yPosition = this.initializeNewPage(newPage, client["PDF Name"]);
-        }
+      summary.y -= 8;
+      this.drawSummaryText(summary, "Notes", { size: 10 });
+      for (const note of DocumentGenerator.EXPUNGEMENT_SUMMARY_NOTES) {
+        this.drawSummaryText(summary, `- ${note}`, { size: 8, indent: 10 });
       }
 
       if (hasExpungeableCase) {
         await this.downloadPDF(pdfDoc, client);
+      }
+    }
+
+    // General notes printed at the end of the case summary.
+    static EXPUNGEMENT_SUMMARY_NOTES = [
+      "Sealing of court records: when the AG's expungement order lists the court case number and is transmitted to the Judiciary, the court seals the case on its own (HRS § 831-3.2(f), effective July 1, 2025). A separate letter to the court is no longer needed.",
+      "The court is not required to seal a case if (1) any charge in the case is not covered by the expungement order, or (2) a co-defendant in the case has not also been expunged (HRS § 831-3.2(f)(1)-(2)). Such cases may remain visible in eCourt Kokua.",
+      "Violation convictions: a person arrested for or charged with a crime but convicted only of a violation may expunge the arrest record (HRS § 831-3.2(a) as amended by Act 152 (2026), codifying Barker v. Young, 153 Haw. 144 (2023)). The AG form's checkbox language refers to offenses with no conviction; consider attaching a short statement citing Act 152 for these cases.",
+      "Application checklist (HCJDC 159(b) Rev. 06/03/2026): signature; copy of valid government-issued photo ID (required); mailing address; self-addressed stamped envelope; money order or cashier's check issued in the U.S., payable to \"State of Hawaii\" ($35 first-time, $50 non-first-time).",
+    ];
+
+    // Per-case notes for the summary page.
+    getCaseSummaryNotes(caseObj) {
+      const notes = [];
+      const charges = Array.isArray(caseObj?.charges) ? caseObj.charges : [];
+
+      const violationConvictionCounts = charges
+        .filter((c) => c?.isExpungeable?.violationConvictionEligible)
+        .map((c) => c.count)
+        .filter((n) => n !== undefined && n !== null && n !== "");
+      if (violationConvictionCounts.length > 0) {
+        notes.push(
+          `Count(s) ${violationConvictionCounts.join(", ")}: violation conviction; eligible under Act 152 (2026) / Barker v. Young if the person was arrested for or charged with a crime (see case details).`
+        );
+      }
+
+      const hasIneligibleCharge = charges.some(
+        (c) => c?.isExpungeable?.status === "Not Expungeable"
+      );
+      if (hasIneligibleCharge && charges.length > 1) {
+        notes.push(
+          "Not every charge is eligible: the court is not required to seal this case (HRS § 831-3.2(f)(1))."
+        );
+      }
+      return notes;
+    }
+
+    // Draw word-wrapped text on the summary pages, adding pages as needed.
+    drawSummaryText(summary, text, { size = 10, indent = 0 } = {}) {
+      const left = 50 + indent;
+      const maxWidth = 600 - left - 40;
+      const lineHeight = size + 4;
+      const safeText = String(text).replace(/[^\x20-\x7E§]/g, " ");
+
+      const lines = [];
+      let line = "";
+      for (const word of safeText.split(/\s+/).filter(Boolean)) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (line && summary.font.widthOfTextAtSize(candidate, size) > maxWidth) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = candidate;
+        }
+      }
+      if (line) lines.push(line);
+
+      for (const l of lines) {
+        if (summary.y < 40) {
+          summary.page = summary.pdfDoc.addPage([600, 400]);
+          summary.y = this.initializeNewPage(summary.page, summary.clientName);
+        }
+        summary.page.drawText(l, { x: left, y: summary.y, size, font: summary.font });
+        summary.y -= lineHeight;
       }
     }
 
@@ -606,148 +678,6 @@ const DocumentGenerator = (function () {
       });
 
       return page.getHeight() - 110;
-    }
-
-    addCaseToPage(page, caseObj, yPosition) {
-      page.drawText(
-        `Case Number: ${caseObj.CaseNumber}: ${caseObj.Expungeable}`,
-        {
-          x: 50,
-          y: yPosition,
-          size: 10,
-        }
-      );
-      return yPosition - 20;
-    }
-
-    async generateExpungementLetterDOCX(caseObj, client, letterName) {
-      const templateUrl = chrome.runtime.getURL(
-        "expungement_letter_template.docx"
-      );
-      const templateResponse = await fetch(templateUrl);
-      const templateArrayBuffer = await templateResponse.arrayBuffer();
-
-      const courtLocation = caseObj.CourtLocation;
-      const courtAddresses = await window.DataLoaders.loadCourtAddresses();
-      const caseNumber = caseObj.CaseNumber;
-      const allSearchReplaceTables =
-        await window.DataLoaders.loadSearchReplaceTables();
-      const searchReplaceTable = allSearchReplaceTables.expungement;
-
-      const courtInfo = this.findCourtAddress(courtAddresses, courtLocation);
-      console.log(
-        `Generating letter for case ${caseNumber} at ${courtLocation}`
-      );
-
-      let courtName = "";
-      let courtAddress1 = "";
-      let courtAddress2 = "";
-      let courtAddress3 = "";
-
-      if (courtInfo) {
-        courtName = courtInfo.name;
-        [courtAddress1, courtAddress2, courtAddress3 = ""] = courtInfo.address;
-      }
-
-      const letterDate = new Date().toLocaleDateString("en-US", {
-        timeZone: "HST",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-
-      const zip = await JSZip.loadAsync(templateArrayBuffer);
-      let documentXmlContent = await zip
-        .file("word/document.xml")
-        .async("string");
-
-      documentXmlContent = this.handleOptionalParagraphs(
-        documentXmlContent,
-        "expungement"
-      );
-
-      const placeholderToValue = {
-        κ: letterName,
-        δ: letterDate,
-        τ: caseNumber,
-        μ: this.alternateInfo.addressLine1,
-        ν: this.alternateInfo.addressLine2,
-        ε: courtName,
-        ζ: courtAddress1,
-        η: courtAddress2,
-        θ: courtAddress3,
-      };
-
-      for (const [placeholder, value] of Object.entries(placeholderToValue)) {
-        documentXmlContent = documentXmlContent.replace(
-          new RegExp(placeholder, "g"),
-          value || ""
-        );
-      }
-
-      zip.file("word/document.xml", documentXmlContent);
-      await this.generateAndDownloadDOCX(zip, client, caseNumber);
-    }
-
-    findCourtAddress(courtAddresses, location) {
-      for (const circuit of courtAddresses.circuits) {
-        for (const court of circuit.courts) {
-          if (court.location.some((loc) => location.includes(loc))) {
-            return {
-              name: court.name,
-              address: court.address,
-            };
-          }
-        }
-      }
-      return null;
-    }
-
-    // handleOptionalParagraphs(content) {
-    //   if (this.alternateAddressLine3) {
-    //     content = content.replace("ξ", this.alternateAddressLine3);
-    //   } else {
-    //     content = content.replace(
-    //       /<w:p w14:paraId="20DEE2BC".*?ξ<\/w:t><\/w:r><\/w:p>/,
-    //       ""
-    //     );
-    //   }
-
-    //   if (this.alternatePhone) {
-    //     content = content.replace("φ", this.alternatePhone);
-    //   } else {
-    //     content = content.replace(
-    //       /<w:p w14:paraId="32400D1D".*?φ<\/w:t><\/w:r><\/w:p>/,
-    //       ""
-    //     );
-    //   }
-
-    //   if (this.alternateEmail) {
-    //     content = content.replace("ω", this.alternateEmail);
-    //   } else {
-    //     content = content.replace(
-    //       /<w:p w14:paraId="011CD49E".*?ω<\/w:t><\/w:r><\/w:p>/,
-    //       ""
-    //     );
-    //   }
-
-    //   return content;
-    // }
-
-    async generateAndDownloadDOCX(zip, client, caseNumber) {
-      try {
-        const zipContent = await zip.generateAsync({ type: "blob" });
-        const docxDownloadLink = document.createElement("a");
-        docxDownloadLink.href = URL.createObjectURL(zipContent);
-        docxDownloadLink.download = `${
-          client["Last Name"] || "name_unavailable"
-        }_letter_${caseNumber}.docx`;
-        document.body.appendChild(docxDownloadLink);
-        docxDownloadLink.click();
-        document.body.removeChild(docxDownloadLink);
-      } catch (error) {
-        console.error("Error generating DOCX file:", error);
-      }
     }
 
     async downloadPDF(pdfDoc, client) {
